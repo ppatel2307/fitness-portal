@@ -60,9 +60,6 @@ router.get(
     const latestCompletions = await prisma.workoutCompletion.findMany({
       take: 10,
       orderBy: { completedAt: 'desc' },
-      include: {
-        // We need to manually join since there's no direct relation
-      },
     });
 
     // Get client names for completions

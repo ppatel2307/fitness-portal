@@ -21,6 +21,8 @@ import {
   workoutPlanIdParamSchema,
   workoutDayIdParamSchema,
   exerciseIdParamSchema,
+  ExerciseInput,
+  AddWorkoutDayInput,
 } from '../schemas/workout.schema.js';
 import { AuthenticatedRequest, ApiResponse } from '../types/index.js';
 
@@ -56,12 +58,12 @@ router.post(
         weekStart: weekStart ? new Date(weekStart) : undefined,
         workoutDays: workoutDays
           ? {
-              create: workoutDays.map((day) => ({
+              create: workoutDays.map((day: AddWorkoutDayInput) => ({
                 dayOfWeek: day.dayOfWeek,
                 title: day.title,
                 exercises: day.exercises
                   ? {
-                      create: day.exercises.map((ex, idx) => ({
+                      create: day.exercises.map((ex: ExerciseInput, idx: number) => ({
                         ...ex,
                         orderIndex: ex.orderIndex ?? idx,
                         videoUrl: ex.videoUrl || null,
@@ -253,7 +255,7 @@ router.post(
         title,
         exercises: exercises
           ? {
-              create: exercises.map((ex, idx) => ({
+              create: exercises.map((ex: ExerciseInput, idx: number) => ({
                 ...ex,
                 orderIndex: ex.orderIndex ?? idx,
                 videoUrl: ex.videoUrl || null,

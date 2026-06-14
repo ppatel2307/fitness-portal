@@ -32,8 +32,8 @@ export class AuthService {
    */
   static generateAccessToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwt.accessSecret, {
-      expiresIn: config.jwt.accessExpiry,
-    });
+      expiresIn: config.jwt.accessExpiry as string,
+    } as jwt.SignOptions);
   }
 
   /**
@@ -41,8 +41,8 @@ export class AuthService {
    */
   static generateRefreshToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwt.refreshSecret, {
-      expiresIn: config.jwt.refreshExpiry,
-    });
+      expiresIn: config.jwt.refreshExpiry as string,
+    } as jwt.SignOptions);
   }
 
   /**
