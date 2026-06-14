@@ -1,271 +1,234 @@
-# FitPortal - Client Training Portal
+# Fitness Training Portal
 
-A production-ready web application for personal trainers to manage clients, workout plans, nutrition targets, and track progress.
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (React)                         │
-│  ┌─────────────┬─────────────┬─────────────┬─────────────┐     │
-│  │   Login     │   Client    │    Admin    │   Shared    │     │
-│  │   Page      │   Portal    │   Portal    │   Components│     │
-│  └─────────────┴─────────────┴─────────────┴─────────────┘     │
-│                              │                                   │
-│                    React Query + Axios                           │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │ HTTP/REST
-┌──────────────────────────────┴──────────────────────────────────┐
-│                         Backend (Express)                        │
-│  ┌─────────────┬─────────────┬─────────────┬─────────────┐     │
-│  │   Auth      │   Users     │   Workouts  │   Nutrition │     │
-│  │   Routes    │   Routes    │   Routes    │   Routes    │     │
-│  └─────────────┴─────────────┴─────────────┴─────────────┘     │
-│                              │                                   │
-│         JWT Auth + Zod Validation + Error Middleware             │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │ Prisma ORM
-┌──────────────────────────────┴──────────────────────────────────┐
-│                        PostgreSQL Database                       │
-│  ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐ │
-│  │  Users  │ Workouts│Nutrition│ Progress│Check-ins│ Content │ │
-│  └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Tech Stack
-
-### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling (dark neutral theme)
-- **React Query (TanStack Query)** for server state management
-- **React Hook Form + Zod** for form handling and validation
-- **React Router v6** for routing
-- **Recharts** for data visualization
-- **Lucide React** for icons
-
-### Backend
-- **Node.js + Express** with TypeScript
-- **Prisma ORM** for database access
-- **PostgreSQL** database
-- **JWT** authentication (access + refresh tokens)
-- **bcrypt** for password hashing
-- **Zod** for request validation
-- **Winston** for logging
-- **Helmet** for security headers
+A production-ready client portal for personal trainers to manage their fitness clients, workout plans, nutrition tracking, and progress monitoring.
 
 ## Features
 
-### Authentication
-- Email/password login
-- JWT-based auth with refresh token rotation
-- Role-based access control (ADMIN / CLIENT)
-- "Remember me" functionality
-- Password change & admin password reset
-
 ### Admin Portal
-- Dashboard with stats (total clients, workouts, check-ins)
-- Client management (CRUD, activate/deactivate)
-- Workout plan builder (create plans, add days, exercises)
-- Nutrition target editor
-- Announcements system
-- Content library (resources)
-- View client check-ins
+- Dashboard with client overview and statistics
+- Client management (create, edit, deactivate accounts)
+- Workout plan builder with exercises, sets, reps, RPE, rest times
+- Nutrition target management
+- Announcements and messaging
+- Content library for resources
 
 ### Client Portal
-- Personal dashboard with today's workout
-- Weekly workout schedule (calendar + list view)
-- Mark workouts complete with comments
-- Nutrition tracking (targets + food logging)
-- Weight tracking with charts
-- Weekly check-in form
-- Profile settings
+- Personal dashboard with today's workout and nutrition summary
+- Workout schedule with completion tracking
+- Nutrition logging and macro tracking
+- Weight and progress tracking with charts
+- Weekly check-in forms
+- Profile and settings management
 
-## Project Structure
+## Tech Stack
 
-```
-fitness-training-portal/
-├── apps/
-│   ├── api/                    # Express backend
-│   │   ├── prisma/
-│   │   │   ├── schema.prisma   # Database schema
-│   │   │   └── seed.ts         # Seed script
-│   │   └── src/
-│   │       ├── config/         # Environment config
-│   │       ├── lib/            # Utilities (prisma, logger, errors)
-│   │       ├── middleware/     # Auth, validation, error handling
-│   │       ├── routes/         # API routes
-│   │       ├── schemas/        # Zod validation schemas
-│   │       ├── services/       # Business logic
-│   │       └── types/          # TypeScript types
-│   │
-│   └── web/                    # React frontend
-│       └── src/
-│           ├── components/
-│           │   ├── layout/     # Sidebar, PageHeader
-│           │   └── ui/         # Reusable UI components
-│           ├── contexts/       # Auth context
-│           ├── lib/            # API client, utilities
-│           ├── pages/
-│           │   ├── admin/      # Admin portal pages
-│           │   ├── auth/       # Login page
-│           │   └── client/     # Client portal pages
-│           └── types/          # TypeScript types
-│
-├── package.json                # Root package.json (workspaces)
-└── README.md
-```
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, React Query, React Hook Form, Recharts
+- **Backend**: Node.js, Express, TypeScript, Prisma ORM
+- **Database**: PostgreSQL
+- **Auth**: JWT with refresh token rotation
 
-## Getting Started
+---
+
+## Local Development
 
 ### Prerequisites
 - Node.js 18+
-- Docker (for PostgreSQL) OR PostgreSQL 14+ installed locally
-- npm or yarn
+- Docker (for local PostgreSQL)
 
-### Installation
+### Setup
 
-1. **Clone and install dependencies**
-   ```bash
-   cd "Fitness Training Portal"
-   npm install
-   ```
+```bash
+# 1. Install dependencies
+npm install
 
-2. **Start the database (using Docker - recommended)**
-   
-   Make sure Docker Desktop is running, then:
-   ```bash
-   docker compose up -d
-   ```
-   
-   This starts PostgreSQL on port 5432 with:
-   - User: `postgres`
-   - Password: `password`
-   - Database: `fitness_portal`
+# 2. Start PostgreSQL with Docker
+docker compose up -d
 
-   **OR if you have PostgreSQL installed locally:**
-   ```sql
-   CREATE DATABASE fitness_portal;
-   ```
-   Then update `apps/api/.env` with your connection details.
+# 3. Generate Prisma client
+npm run db:generate
 
-3. **Configure environment variables**
-   
-   The `.env` file is already created at `apps/api/.env`. If needed, update it:
-   ```env
-   DATABASE_URL="postgresql://postgres:password@localhost:5432/fitness_portal"
-   JWT_ACCESS_SECRET="dev-access-secret-change-in-production-32chars"
-   JWT_REFRESH_SECRET="dev-refresh-secret-change-in-production-32chars"
-   ```
+# 4. Push database schema
+npm run db:push
 
-4. **Generate Prisma client**
-   ```bash
-   npm run db:generate
-   ```
+# 5. Seed demo data
+npm run db:seed
 
-5. **Run database migrations**
-   ```bash
-   npm run db:migrate
-   ```
-   
-   Or for quick setup without migration history:
-   ```bash
-   npm run db:push
-   ```
+# 6. Start development servers
+npm run dev
+```
 
-6. **Seed the database with sample data**
-   ```bash
-   npm run db:seed
-   ```
+Open http://localhost:5173
 
-7. **Start the development servers**
-   ```bash
-   npm run dev
-   ```
+### Demo Accounts
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@fitportal.com | Admin123! |
+| Client | john@example.com | Client123! |
+| Client | sarah@example.com | Client123! |
 
-   This starts both:
-   - API server at `http://localhost:3001`
-   - Frontend at `http://localhost:5173`
+---
 
-### Demo Credentials
+## Production Deployment
 
-After seeding, you can log in with:
+### Architecture
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│     Vercel      │────▶│     Render      │────▶│      Neon       │
+│   (Frontend)    │     │   (API/Docker)  │     │  (PostgreSQL)   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
 
-| Role   | Email               | Password    |
-|--------|---------------------|-------------|
-| Admin  | admin@fitportal.com | Admin123!   |
-| Client | john@example.com    | Client123!  |
-| Client | sarah@example.com   | Client123!  |
+### Step 1: Set Up Database (Neon - Free)
 
-## API Routes
+1. Go to [neon.tech](https://neon.tech) and sign up
+2. Create a new project called `fitness-portal`
+3. Copy the connection string (looks like `postgresql://user:pass@host/db?sslmode=require`)
+4. Save this - you'll need it for the API deployment
+
+### Step 2: Deploy API to Render
+
+1. Go to [render.com](https://render.com) and sign up with GitHub
+2. Click **"New"** → **"Web Service"**
+3. Connect your `fitness-portal` repository
+4. Configure:
+   - **Name**: `fitness-portal-api`
+   - **Root Directory**: `apps/api`
+   - **Runtime**: `Docker`
+   - **Plan**: Free
+
+5. Add Environment Variables:
+   | Key | Value |
+   |-----|-------|
+   | `DATABASE_URL` | Your Neon connection string |
+   | `JWT_ACCESS_SECRET` | Generate: `openssl rand -base64 32` |
+   | `JWT_REFRESH_SECRET` | Generate: `openssl rand -base64 32` |
+   | `NODE_ENV` | `production` |
+   | `FRONTEND_URL` | (add after Step 3) |
+
+6. Click **"Create Web Service"**
+7. Copy the deployed URL (e.g., `https://fitness-portal-api.onrender.com`)
+
+### Step 3: Deploy Frontend to Vercel
+
+1. Go to [vercel.com](https://vercel.com) and sign up with GitHub
+2. Click **"Add New"** → **"Project"**
+3. Import your `fitness-portal` repository
+4. Configure:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `apps/web`
+
+5. Add Environment Variable:
+   | Key | Value |
+   |-----|-------|
+   | `VITE_API_URL` | `https://your-api-url.onrender.com/api` |
+
+6. Click **"Deploy"**
+7. Copy your Vercel URL (e.g., `https://fitness-portal.vercel.app`)
+
+### Step 4: Connect Frontend to API
+
+Go back to Render → Your API service → Environment:
+- Add `FRONTEND_URL` = `https://your-vercel-url.vercel.app`
+- Redeploy the service
+
+### Step 5: Seed Production Database
+
+Option A - Via Render Shell:
+1. Go to your Render service → Shell
+2. Run: `npm run db:seed`
+
+Option B - Locally:
+```bash
+DATABASE_URL="your-neon-connection-string" npm run db:seed -w apps/api
+```
+
+---
+
+## Environment Variables Reference
+
+### API (Backend)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `JWT_ACCESS_SECRET` | Secret for access tokens (32+ chars) | Yes |
+| `JWT_REFRESH_SECRET` | Secret for refresh tokens (32+ chars) | Yes |
+| `NODE_ENV` | `development` or `production` | Yes |
+| `PORT` | Server port (default: 3001) | No |
+| `FRONTEND_URL` | Frontend URL for CORS | Yes |
+| `ACCESS_TOKEN_EXPIRY` | Access token lifetime (default: 15m) | No |
+| `REFRESH_TOKEN_EXPIRY` | Refresh token lifetime (default: 7d) | No |
+
+### Web (Frontend)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `VITE_API_URL` | Full API URL with `/api` suffix | Yes |
+
+---
+
+## API Endpoints
 
 ### Authentication
 - `POST /api/auth/login` - Login
 - `POST /api/auth/refresh` - Refresh tokens
 - `POST /api/auth/logout` - Logout
-- `POST /api/auth/change-password` - Change own password
-- `POST /api/auth/admin/reset-password` - Admin reset client password
+- `POST /api/auth/change-password` - Change password
 - `GET /api/auth/me` - Get current user
 
-### Users (Admin)
+### Admin Routes
+- `GET /api/admin/dashboard` - Dashboard stats
+- `GET /api/admin/clients-overview` - All clients overview
 - `GET /api/users/clients` - List all clients
 - `POST /api/users/clients` - Create client
-- `GET /api/users/clients/:clientId` - Get client details
-- `PATCH /api/users/clients/:clientId` - Update client
-- `DELETE /api/users/clients/:clientId` - Deactivate client
+- `PATCH /api/users/clients/:id` - Update client
+- `POST /api/auth/admin/reset-password` - Reset client password
 
-### Workouts
+### Workout Management
 - `GET /api/workouts/plans` - List workout plans
-- `POST /api/workouts/plans` - Create workout plan
-- `PATCH /api/workouts/plans/:planId` - Update plan
-- `DELETE /api/workouts/plans/:planId` - Delete plan
-- `POST /api/workouts/complete` - Mark workout complete
-- `GET /api/workouts/my-plan` - Get client's active plan
+- `POST /api/workouts/plans` - Create plan
+- `PUT /api/workouts/plans/:id` - Update plan
+- `DELETE /api/workouts/plans/:id` - Delete plan
 
 ### Nutrition
-- `POST /api/nutrition/targets` - Set nutrition targets
-- `GET /api/nutrition/my-targets` - Get own targets
-- `POST /api/nutrition/logs` - Add food log
+- `GET /api/nutrition/targets` - Get targets
+- `POST /api/nutrition/targets` - Set targets
 - `GET /api/nutrition/logs` - Get food logs
-- `GET /api/nutrition/summary` - Get nutrition summary
+- `POST /api/nutrition/logs` - Add food log
 
-### Progress
+### Progress Tracking
+- `GET /api/progress/weight` - Weight history
 - `POST /api/progress/weight` - Log weight
-- `GET /api/progress/weight` - Get weight logs
-- `POST /api/progress/check-ins` - Submit check-in
-- `GET /api/progress/check-ins` - Get check-ins
-- `GET /api/progress/stats` - Get aggregated stats
+- `GET /api/progress/checkins` - Check-in history
+- `POST /api/progress/checkins` - Submit check-in
+- `GET /api/progress/stats` - Dashboard statistics
 
-### Content
-- `POST /api/content/announcements` - Create announcement
-- `GET /api/content/announcements` - Get announcements
-- `POST /api/content/resources` - Create resource
-- `GET /api/content/resources` - Get resources
+---
+
+## Data Storage
+
+All data is stored in PostgreSQL:
+- **User accounts** and authentication
+- **Client profiles** with goals and notes
+- **Workout plans** with exercises
+- **Nutrition targets** and food logs
+- **Weight logs** and progress data
+- **Check-ins** and announcements
+
+Data persists in the cloud database (Neon) and is backed up automatically.
+
+---
 
 ## Security Features
 
-- **Password hashing** with bcrypt (12 rounds)
-- **JWT tokens** with short-lived access tokens (15m) and refresh token rotation
-- **Role-based access control** enforced on all routes
-- **Ownership validation** - clients can only access their own data
-- **Input validation** with Zod on all API endpoints
-- **SQL injection prevention** via Prisma parameterized queries
-- **Rate limiting** on API endpoints
-- **Security headers** via Helmet
-- **CORS** configured for frontend origin
+- Password hashing with bcrypt
+- JWT authentication with refresh token rotation
+- Role-based access control (ADMIN/CLIENT)
+- Client data isolation (server-side ownership checks)
+- Rate limiting (100 requests/15 minutes)
+- Helmet security headers
+- CORS protection
+- Input validation with Zod
 
-## Building for Production
-
-```bash
-# Build both frontend and backend
-npm run build
-
-# Run production server
-cd apps/api && npm start
-```
-
-For the frontend, deploy the `apps/web/dist` folder to a static hosting service (Vercel, Netlify, etc.) and configure the API URL.
+---
 
 ## License
 
