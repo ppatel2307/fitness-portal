@@ -126,6 +126,7 @@ export interface CheckIn {
   stress: number;
   adherence: number;
   notes?: string;
+  createdAt: string;
   client?: {
     id: string;
     name: string;
