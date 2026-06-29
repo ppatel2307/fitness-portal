@@ -7,30 +7,32 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dark neutral theme
+        // VEGGI CHIKN — dark + neon theme
         background: {
-          DEFAULT: '#0b0f14',
-          secondary: '#12171d',
-          tertiary: '#1a2028',
+          DEFAULT: '#06080a',
+          secondary: '#0b0f12',
+          tertiary: '#11161b',
         },
         surface: {
-          DEFAULT: '#1a2028',
-          hover: '#232b35',
-          active: '#2c3642',
+          DEFAULT: '#11161b',
+          hover: '#181f26',
+          active: '#222b34',
         },
         border: {
-          DEFAULT: '#2c3642',
-          light: '#3a4654',
+          DEFAULT: '#1e262e',
+          light: '#2c3742',
         },
         text: {
-          primary: '#f1f5f9',
-          secondary: '#94a3b8',
-          muted: '#64748b',
+          primary: '#f2f5f3',
+          secondary: '#9aa4a0',
+          muted: '#5f6a64',
         },
+        // neon green brand accent. `fg` is the readable text color to use ON accent.
         accent: {
-          DEFAULT: '#3b82f6',
-          hover: '#2563eb',
-          muted: '#1e3a5f',
+          DEFAULT: '#39ff14',
+          hover: '#2fe00d',
+          muted: '#10330a',
+          fg: '#05140a',
         },
         success: {
           DEFAULT: '#22c55e',
@@ -41,12 +43,27 @@ export default {
           muted: '#78350f',
         },
         error: {
-          DEFAULT: '#ef4444',
+          DEFAULT: '#ff3b3b',
           muted: '#7f1d1d',
         },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        glow: '0 0 30px rgba(57,255,20,0.35)',
+        'glow-sm': '0 0 16px rgba(57,255,20,0.30)',
+      },
+      keyframes: {
+        'pulse-ring': {
+          '0%': { boxShadow: '0 0 0 0 rgba(57,255,20,0.6)' },
+          '70%': { boxShadow: '0 0 0 16px rgba(57,255,20,0)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(57,255,20,0)' },
+        },
+      },
+      animation: {
+        'pulse-ring': 'pulse-ring 1.8s infinite',
       },
     },
   },

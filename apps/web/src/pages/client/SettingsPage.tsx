@@ -281,9 +281,7 @@ export function SettingsPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-text-secondary">Account Status</span>
-              <Badge variant={user?.active ? 'success' : 'error'}>
-                {user?.active ? 'Active' : 'Inactive'}
-              </Badge>
+              <Badge variant="success">Active</Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-text-secondary">Member Since</span>

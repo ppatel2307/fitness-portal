@@ -28,7 +28,15 @@ import {
   EmptyState,
   SkeletonTable,
 } from '@/components/ui';
-import type { ClientOverview, ApiResponse } from '@/types';
+import type { User, ApiResponse } from '@/types';
+type ClientOverview = User & {
+  active?: boolean;
+  goal?: string;
+  lastCheckIn?: string;
+  lastAdherence?: number;
+  workoutPlans?: { id: string }[];
+  onboarding?: { completed: boolean };
+};
 import {
   Plus,
   Edit,

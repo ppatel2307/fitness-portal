@@ -21,7 +21,17 @@ import {
   Badge,
   EmptyState,
 } from '@/components/ui';
-import type { Resource, ApiResponse } from '@/types';
+import type { ApiResponse } from '@/types';
+
+interface Resource {
+  id: string;
+  title: string;
+  description?: string;
+  url: string;
+  type: string;
+  category?: string;
+  createdAt: string;
+}
 import { Plus, Trash2, ExternalLink, FolderOpen, FileText, Video, Brain } from 'lucide-react';
 
 const resourceSchema = z.object({
@@ -169,10 +179,10 @@ export function ResourcesPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant={categoryColors[resource.category] as any}>
+                      <Badge variant={(resource.category ? categoryColors[resource.category] : 'default') as any}>
                         <span className="flex items-center gap-1">
-                          {categoryIcons[resource.category]}
-                          {resource.category.toLowerCase()}
+                          {resource.category ? categoryIcons[resource.category] : null}
+                          {resource.category?.toLowerCase() ?? 'unknown'}
                         </span>
                       </Badge>
                     </div>

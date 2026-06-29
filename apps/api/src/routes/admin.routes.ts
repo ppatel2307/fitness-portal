@@ -1,164 +1,257 @@
-/**
- * Admin-specific routes
- * Dashboard stats and admin operations
- */
-
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { ApiResponse } from '../types/index.js';
+import { NotFoundError } from '../lib/errors.js';
+import { ApiResponse, AuthenticatedRequest } from '../types/index.js';
 
 const router = Router();
 
-/**
- * GET /admin/dashboard
- * Get admin dashboard statistics
- */
+// Dashboard statistics
 router.get(
   '/dashboard',
   authenticate,
   requireRole('ADMIN'),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
-    // Total active clients
-    const totalClients = await prisma.user.count({
-      where: { role: 'CLIENT', active: true },
-    });
-
-    // Get start of current week
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
 
-    // Workouts scheduled this week (count workout days * active plans)
-    const activePlans = await prisma.workoutPlan.findMany({
-      where: { active: true },
-      include: { workoutDays: true },
-    });
-    const workoutsThisWeek = activePlans.reduce(
-      (acc, plan) => acc + plan.workoutDays.length,
-      0
-    );
+    const [totalUsers, pendingRequests, completionsThisWeek, unreadNotifications] = await Promise.all([
+      prisma.user.count({ where: { role: 'USER', active: true } }),
+      prisma.userRequest.count({ where: { status: 'PENDING' } }),
+      prisma.workoutCompletion.count({ where: { completedAt: { gte: weekStart } } }),
+      prisma.notification.count({ where: { read: false } }),
+    ]);
 
-    // Check-ins pending (from last week without response)
-    const lastWeekStart = new Date(weekStart);
-    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-
-    const checkInsThisWeek = await prisma.checkIn.count({
-      where: {
-        weekOf: { gte: lastWeekStart, lt: weekStart },
+    const recentUsers = await prisma.user.findMany({
+      where: { role: 'USER' },
+      select: {
+        id: true, name: true, email: true, createdAt: true,
+        onboarding: { select: { completed: true } },
       },
-    });
-
-    // Get all clients for pending check-ins calculation
-    const activeClients = await prisma.user.count({
-      where: { role: 'CLIENT', active: true },
-    });
-    const pendingCheckIns = Math.max(0, activeClients - checkInsThisWeek);
-
-    // Latest workout logs (completions)
-    const latestCompletions = await prisma.workoutCompletion.findMany({
-      take: 10,
-      orderBy: { completedAt: 'desc' },
-    });
-
-    // Get client names for completions
-    const clientIds = [...new Set(latestCompletions.map((c) => c.clientId))];
-    const clients = await prisma.user.findMany({
-      where: { id: { in: clientIds } },
-      select: { id: true, name: true },
-    });
-    const clientMap = new Map(clients.map((c) => [c.id, c.name]));
-
-    const completionsWithNames = latestCompletions.map((c) => ({
-      ...c,
-      clientName: clientMap.get(c.clientId) || 'Unknown',
-    }));
-
-    // Recent check-ins
-    const recentCheckIns = await prisma.checkIn.findMany({
-      take: 5,
       orderBy: { createdAt: 'desc' },
-      include: {
-        client: { select: { id: true, name: true } },
-      },
+      take: 5,
+    });
+
+    const recentRequests = await prisma.userRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
     });
 
     res.json({
       success: true,
-      data: {
-        totalClients,
-        workoutsThisWeek,
-        pendingCheckIns,
-        latestCompletions: completionsWithNames,
-        recentCheckIns,
-      },
+      data: { totalUsers, pendingRequests, completionsThisWeek, unreadNotifications, recentUsers, recentRequests },
     });
   })
 );
 
-/**
- * GET /admin/clients-overview
- * Get overview of all clients with their latest stats
- */
+// Get all users
 router.get(
-  '/clients-overview',
+  '/users',
   authenticate,
   requireRole('ADMIN'),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
-    const clients = await prisma.user.findMany({
-      where: { role: 'CLIENT' },
+    const { role } = req.query;
+    const users = await prisma.user.findMany({
+      where: role ? { role: role as 'USER' | 'MANAGER' | 'ADMIN' } : { role: 'USER' },
       select: {
-        id: true,
-        name: true,
-        email: true,
-        active: true,
-        createdAt: true,
-        clientProfile: {
-          select: { goal: true },
-        },
-        workoutPlans: {
-          where: { active: true },
-          select: { id: true, title: true },
-          take: 1,
-        },
-        nutritionTarget: {
-          select: { calories: true },
-        },
-        weightLogs: {
-          orderBy: { date: 'desc' },
-          take: 1,
-          select: { weight: true, date: true },
-        },
-        checkIns: {
-          orderBy: { weekOf: 'desc' },
-          take: 1,
-          select: { weekOf: true, adherence: true },
-        },
+        id: true, email: true, name: true, active: true, createdAt: true, avatarUrl: true,
+        clientProfile: { select: { goal: true, height: true, weight: true } },
+        onboarding: { select: { completed: true, fitnessGoals: true } },
+        workoutPlans: { where: { active: true }, select: { id: true, title: true }, take: 1 },
+        assignedManager: { include: { manager: { select: { id: true, name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    res.json({ success: true, data: users });
+  })
+);
 
-    const clientsOverview = clients.map((client) => ({
-      id: client.id,
-      name: client.name,
-      email: client.email,
-      active: client.active,
-      createdAt: client.createdAt,
-      goal: client.clientProfile?.goal,
-      hasWorkoutPlan: client.workoutPlans.length > 0,
-      workoutPlanTitle: client.workoutPlans[0]?.title,
-      hasNutritionTargets: !!client.nutritionTarget,
-      latestWeight: client.weightLogs[0]?.weight,
-      latestWeightDate: client.weightLogs[0]?.date,
-      lastCheckIn: client.checkIns[0]?.weekOf,
-      lastAdherence: client.checkIns[0]?.adherence,
-    }));
-
-    res.json({
-      success: true,
-      data: clientsOverview,
+// Get specific user
+router.get(
+  '/users/:userId',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      include: {
+        clientProfile: true,
+        onboarding: true,
+        workoutPlans: {
+          include: {
+            workoutDays: { include: { exercises: { orderBy: { orderIndex: 'asc' } } }, orderBy: { dayOfWeek: 'asc' } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        mealPlans: { orderBy: { weekStart: 'desc' }, take: 1 },
+        workoutCompletions: { orderBy: { completedAt: 'desc' }, take: 30 },
+        userRequests: { orderBy: { createdAt: 'desc' } },
+        assignedManager: { include: { manager: { select: { id: true, name: true, email: true } } } },
+      },
     });
+
+    if (!user) throw new NotFoundError('User');
+    res.json({ success: true, data: user });
+  })
+);
+
+// Update user
+router.patch(
+  '/users/:userId',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const { name, active, role } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+    if (!user) throw new NotFoundError('User');
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: { name, active, role },
+      select: { id: true, email: true, name: true, role: true, active: true },
+    });
+
+    res.json({ success: true, data: updated });
+  })
+);
+
+// Assign manager to user
+router.post(
+  '/users/:userId/assign-manager',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({ body: z.object({ managerId: z.string().uuid() }) }),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const { userId } = req.params;
+    const { managerId } = req.body;
+
+    const [user, manager] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.user.findUnique({ where: { id: managerId, role: 'MANAGER' } }),
+    ]);
+
+    if (!user) throw new NotFoundError('User');
+    if (!manager) throw new NotFoundError('Manager');
+
+    const assignment = await prisma.managerClient.upsert({
+      where: { clientId: userId },
+      create: { managerId, clientId: userId },
+      update: { managerId },
+    });
+
+    res.json({ success: true, data: assignment });
+  })
+);
+
+// AI Documents management
+router.get(
+  '/documents',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const docs = await prisma.aIDocument.findMany({ orderBy: { updatedAt: 'desc' } });
+    res.json({ success: true, data: docs });
+  })
+);
+
+router.post(
+  '/documents',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      title: z.string().min(1).max(200),
+      type: z.enum(['KNOWLEDGE_BASE', 'NUTRITION_GUIDE']),
+      content: z.string().min(1),
+    }),
+  }),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const doc = await prisma.aIDocument.create({ data: req.body });
+    res.status(201).json({ success: true, data: doc });
+  })
+);
+
+router.patch(
+  '/documents/:id',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const doc = await prisma.aIDocument.findUnique({ where: { id: req.params.id } });
+    if (!doc) throw new NotFoundError('Document');
+
+    const updated = await prisma.aIDocument.update({
+      where: { id: req.params.id },
+      data: { title: req.body.title, content: req.body.content, active: req.body.active },
+    });
+
+    res.json({ success: true, data: updated });
+  })
+);
+
+router.delete(
+  '/documents/:id',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const doc = await prisma.aIDocument.findUnique({ where: { id: req.params.id } });
+    if (!doc) throw new NotFoundError('Document');
+    await prisma.aIDocument.delete({ where: { id: req.params.id } });
+    res.json({ success: true, data: { message: 'Document deleted' } });
+  })
+);
+
+// Get managers list
+router.get(
+  '/managers',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const managers = await prisma.user.findMany({
+      where: { role: 'MANAGER', active: true },
+      select: {
+        id: true, name: true, email: true,
+        managedClients: { select: { clientId: true } },
+      },
+    });
+    res.json({ success: true, data: managers });
+  })
+);
+
+// Create manager
+router.post(
+  '/managers',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      email: z.string().email(),
+      name: z.string().min(1),
+      password: z.string().min(8),
+    }),
+  }),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
+    const { email, name, password } = req.body;
+
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Email already in use' } });
+    }
+
+    const { AuthService } = await import('../services/auth.service.js');
+    const passwordHash = await AuthService.hashPassword(password);
+
+    const manager = await prisma.user.create({
+      data: { email: email.toLowerCase(), name, passwordHash, role: 'MANAGER' },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
+    });
+
+    res.status(201).json({ success: true, data: manager });
   })
 );
 

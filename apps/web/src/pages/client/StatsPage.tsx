@@ -35,7 +35,14 @@ import {
   Badge,
 } from '@/components/ui';
 import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder';
-import type { WeightLog, ClientStats, ApiResponse } from '@/types';
+import type { WeightLog, ApiResponse } from '@/types';
+
+interface ClientStats {
+  weightTrend?: WeightLog[];
+  nutritionTrend?: { date: string; _sum: { calories?: number; protein?: number } }[];
+  completionRate?: number;
+  workoutsCompleted?: number;
+}
 import { Scale, TrendingUp, TrendingDown, Plus, Activity, Camera } from 'lucide-react';
 
 const weightLogSchema = z.object({
@@ -111,12 +118,12 @@ export function StatsPage() {
     : null;
 
   // Format data for charts
-  const weightChartData = weightTrend.map((log) => ({
+  const weightChartData = weightTrend.map((log: WeightLog) => ({
     date: formatDate(log.date, 'short').replace(/,.*/, ''),
     weight: log.weight,
   }));
 
-  const nutritionChartData = (stats?.nutritionTrend || []).map((item) => ({
+  const nutritionChartData = (stats?.nutritionTrend || []).map((item: { date: string; _sum: { calories?: number; protein?: number } }) => ({
     date: formatDate(item.date, 'short').replace(/,.*/, ''),
     calories: item._sum.calories || 0,
     protein: item._sum.protein || 0,
@@ -334,7 +341,7 @@ export function StatsPage() {
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-accent-muted flex items-center justify-center">
               <span className="text-2xl font-bold text-accent">
-                {stats?.weeklyWorkoutsCompleted || 0}
+                {stats?.workoutsCompleted || 0}
               </span>
             </div>
             <div>

@@ -1,45 +1,68 @@
-/**
- * Shared TypeScript types for the frontend
- */
-
-export type Role = 'ADMIN' | 'CLIENT';
+export type Role = 'ADMIN' | 'MANAGER' | 'USER';
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: Role;
-  active: boolean;
+  avatarUrl?: string;
   createdAt: string;
   clientProfile?: ClientProfile;
+  onboarding?: OnboardingQuestionnaire;
+  accountabilitySubscription?: AccountabilitySubscription;
 }
 
 export interface ClientProfile {
   id: string;
   userId: string;
   height?: number;
+  weight?: number;
+  age?: number;
+  gender?: string;
   goal?: string;
   notes?: string;
   profilePhotoUrl?: string;
-  bannerPhotoUrl?: string;
   timezone?: string;
+  stripeCustomerId?: string;
 }
 
-export interface AuthUser {
+export interface OnboardingQuestionnaire {
+  id: string;
   userId: string;
-  email: string;
-  role: Role;
+  height?: number;
+  weight?: number;
+  age?: number;
+  gender?: string;
+  fitnessExperience?: string;
+  dailyWorkoutMinutes?: number;
+  fitnessGoals: string[];
+  injuries?: string;
+  dietaryRestrictions: string[];
+  equipment: string[];
+  activityLevel?: string;
+  completed: boolean;
+  completedAt?: string;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: Role;
-  };
+export interface WorkoutPlan {
+  id: string;
+  userId: string;
+  title: string;
+  weekStart?: string;
+  active: boolean;
+  createdAt: string;
+  user?: { id: string; name: string; email: string };
+  workoutDays: WorkoutDay[];
+}
+
+export interface WorkoutDay {
+  id: string;
+  workoutPlanId: string;
+  dayOfWeek: number;
+  title: string;
+  isRestDay: boolean;
+  exercises: Exercise[];
+  completions?: WorkoutCompletion[];
 }
 
 export interface Exercise {
@@ -48,47 +71,42 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: string;
-  rpe?: number;
-  weight?: string;
   restSeconds?: number;
   notes?: string;
-  videoUrl?: string;
+  youtubeUrl?: string;
   orderIndex: number;
-}
-
-export interface WorkoutDay {
-  id: string;
-  workoutPlanId: string;
-  dayOfWeek: number;
-  title: string;
-  exercises: Exercise[];
-}
-
-export interface WorkoutPlan {
-  id: string;
-  clientId: string;
-  title: string;
-  weekStart?: string;
-  active: boolean;
-  workoutDays: WorkoutDay[];
-  client?: {
-    id: string;
-    name: string;
-    email: string;
-  };
 }
 
 export interface WorkoutCompletion {
   id: string;
-  clientId: string;
+  userId: string;
   workoutDayId: string;
   completedAt: string;
-  comment?: string;
+  durationMinutes?: number;
+  feedback?: string;
+  workoutDay?: { title: string; dayOfWeek: number };
+}
+
+export interface MealPlan {
+  id: string;
+  userId: string;
+  weekStart: string;
+  breakfast: MealSection;
+  lunch: MealSection;
+  dinner: MealSection;
+  snacks: MealSection;
+  groceries: string[];
+  calories: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface MealSection {
+  items: string[];
+  calories: number;
 }
 
 export interface NutritionTarget {
-  id: string;
-  clientId: string;
   calories: number;
   protein: number;
   carbs: number;
@@ -97,104 +115,89 @@ export interface NutritionTarget {
   notes?: string;
 }
 
-export interface FoodLog {
+export interface AIMessage {
   id: string;
-  clientId: string;
-  date: string;
-  mealName: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: string;
+}
+
+export interface AIConversation {
+  id: string;
+  messages: AIMessage[];
+}
+
+export interface UserRequest {
+  id: string;
+  userId: string;
+  category: 'WORKOUT_MODIFICATION' | 'NUTRITION_REQUEST' | 'INJURY_UPDATE' | 'GENERAL';
+  subject: string;
+  body: string;
+  status: 'PENDING' | 'IN_REVIEW' | 'RESOLVED';
+  adminReply?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  user?: { id: string; name: string; email: string };
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface WeightLog {
   id: string;
-  clientId: string;
+  userId: string;
   date: string;
   weight: number;
   note?: string;
-  photoUrl?: string;
 }
 
 export interface CheckIn {
   id: string;
-  clientId: string;
+  userId: string;
   weekOf: string;
   energy: number;
   sleepHours: number;
   stress: number;
   adherence: number;
   notes?: string;
-  createdAt: string;
-  client?: {
-    id: string;
-    name: string;
-    email: string;
-  };
 }
 
-export interface Announcement {
+export interface AccountabilitySubscription {
   id: string;
-  title: string;
-  body: string;
-  audienceType: 'ALL' | 'SPECIFIC';
-  createdAt: string;
-  recipients?: { id: string; name: string }[];
+  userId: string;
+  active: boolean;
+  tier: string;
+  stripeCustomerId?: string;
 }
 
-export interface Resource {
+export interface AIDocument {
   id: string;
   title: string;
-  description?: string;
-  url: string;
-  category: 'NUTRITION' | 'FORM' | 'MINDSET' | 'OTHER';
+  type: 'KNOWLEDGE_BASE' | 'NUTRITION_GUIDE';
+  content: string;
+  active: boolean;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: { id: string; email: string; name: string; role: Role };
+  isNewUser?: boolean;
+  needsOnboarding?: boolean;
 }
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
-export interface AdminDashboardStats {
-  totalClients: number;
-  workoutsThisWeek: number;
-  pendingCheckIns: number;
-  latestCompletions: Array<WorkoutCompletion & { clientName: string }>;
-  recentCheckIns: CheckIn[];
-}
-
-export interface ClientStats {
-  weightTrend: WeightLog[];
-  nutritionTrend: Array<{
-    date: string;
-    _sum: {
-      calories: number | null;
-      protein: number | null;
-    };
-  }>;
-  weeklyWorkoutsCompleted: number;
-  latestCheckIn?: CheckIn;
-}
-
-export interface ClientOverview {
-  id: string;
-  name: string;
-  email: string;
-  active: boolean;
-  createdAt: string;
-  goal?: string;
-  hasWorkoutPlan: boolean;
-  workoutPlanTitle?: string;
-  hasNutritionTargets: boolean;
-  latestWeight?: number;
-  latestWeightDate?: string;
-  lastCheckIn?: string;
-  lastAdherence?: number;
+  error?: { code: string; message: string; details?: unknown };
+  meta?: { page?: number; limit?: number; total?: number };
 }

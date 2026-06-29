@@ -36,12 +36,15 @@ async function main() {
   await prisma.clientProfile.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create Admin
-  const adminPassword = await hashPassword('Admin123!');
+  // Create the single Admin (you). Configurable via env so no personal
+  // password lives in source control. Signing in with Google using this same
+  // email also grants ADMIN (googleLogin matches by email and keeps the role).
+  const adminEmail = (process.env.ADMIN_EMAIL || 'ppoojan455@gmail.com').toLowerCase();
+  const adminPassword = await hashPassword(process.env.ADMIN_PASSWORD || 'ChangeMe!2026');
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@fitportal.com',
-      name: 'Coach Mike',
+      email: adminEmail,
+      name: process.env.ADMIN_NAME || 'Coach',
       passwordHash: adminPassword,
       role: 'ADMIN',
     },
@@ -55,7 +58,7 @@ async function main() {
       email: 'john@example.com',
       name: 'John Smith',
       passwordHash: client1Password,
-      role: 'CLIENT',
+      role: 'USER',
       clientProfile: {
         create: {
           height: 180,
@@ -75,7 +78,7 @@ async function main() {
       email: 'sarah@example.com',
       name: 'Sarah Johnson',
       passwordHash: client2Password,
-      role: 'CLIENT',
+      role: 'USER',
       clientProfile: {
         create: {
           height: 165,

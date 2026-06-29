@@ -193,7 +193,7 @@ export function WorkoutPlansPage() {
                       </Badge>
                     </div>
                     <p className="text-sm text-text-secondary mt-1">
-                      {plan.client?.name} • {plan.workoutDays.length} days
+                      {plan.user?.name} • {plan.workoutDays.length} days
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -240,7 +240,6 @@ export function WorkoutPlansPage() {
                               </span>
                               <span className="text-text-muted">
                                 {exercise.sets}x{exercise.reps}
-                                {exercise.rpe && ` @RPE ${exercise.rpe}`}
                               </span>
                             </div>
                           ))}

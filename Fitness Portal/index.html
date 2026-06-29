@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Veggi Chikn Fitness — Become Unrecognizable</title>
+<style>
+  /* ============ THEME ============ */
+  :root {
+    --bg: #050607;
+    --bg-2: #0a0d10;
+    --panel: #0d1115;
+    --ink: #f2f5f3;
+    --muted: #8c958f;
+    --neon: #39ff14;        /* toxic green */
+    --neon-dim: #1f8f0c;
+    --danger: #ff2d2d;       /* showdown red */
+    --line: rgba(57,255,20,0.18);
+    --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--neon); color: #000; }
+
+  /* ============ ENTER GATE ============ */
+  #gate {
+    position: fixed; inset: 0; z-index: 100;
+    background: radial-gradient(circle at 50% 40%, #0c1410 0%, #000 75%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 28px; padding: 24px;
+    transition: opacity .8s ease, visibility .8s ease;
+  }
+  #gate.hidden { opacity: 0; visibility: hidden; }
+  .gate-brand {
+    font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
+    font-size: clamp(28px, 6vw, 64px); line-height: 1;
+  }
+  .gate-brand .veggi { color: var(--neon); text-shadow: 0 0 24px rgba(57,255,20,.55); }
+  .gate-brand .chikn { color: var(--ink); }
+  .gate-sub { color: var(--muted); max-width: 480px; font-size: clamp(13px,2.6vw,16px); letter-spacing: .04em; }
+  .enter-btn {
+    margin-top: 6px; cursor: pointer; border: 1.5px solid var(--neon);
+    background: transparent; color: var(--neon);
+    padding: 16px 46px; border-radius: 999px;
+    font-weight: 800; letter-spacing: .22em; text-transform: uppercase; font-size: 14px;
+    transition: all .25s ease; position: relative; overflow: hidden;
+  }
+  .enter-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 30px rgba(57,255,20,.6); }
+  .gate-hint { color: #4d554f; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  .pulse-ring {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--neon);
+    box-shadow: 0 0 0 0 rgba(57,255,20,.7); animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(57,255,20,.6); }
+    70% { box-shadow: 0 0 0 18px rgba(57,255,20,0); }
+    100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); }
+  }
+
+  /* ============ NAV ============ */
+  header.nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px clamp(20px, 5vw, 56px);
+    background: linear-gradient(180deg, rgba(5,6,7,.9), rgba(5,6,7,0));
+    backdrop-filter: blur(8px);
+  }
+  .brand { font-weight: 900; letter-spacing: .14em; text-transform: uppercase; font-size: 18px; }
+  .brand .veggi { color: var(--neon); }
+  .nav-tabs { display: flex; gap: 6px; align-items: center; }
+  .tab {
+    cursor: pointer; background: none; border: none; color: var(--muted);
+    font-family: var(--font); font-weight: 700; font-size: 13px;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 10px 16px; border-radius: 8px; transition: all .2s ease; position: relative;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--neon); }
+  .tab.active::after {
+    content: ''; position: absolute; left: 16px; right: 16px; bottom: 4px; height: 2px;
+    background: var(--neon); box-shadow: 0 0 10px var(--neon);
+  }
+  .tab.cta {
+    border: 1.5px solid var(--neon); color: var(--neon); border-radius: 999px; padding: 9px 20px;
+  }
+  .tab.cta:hover { background: var(--neon); color: #000; }
+  .nav-toggle { display: none; background: none; border: none; color: var(--neon); font-size: 24px; cursor: pointer; }
+
+  /* mute control */
+  .mute-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 60;
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 1.5px solid var(--line); background: rgba(13,17,21,.8);
+    color: var(--neon); cursor: pointer; backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s ease; font-size: 18px;
+  }
+  .mute-btn:hover { border-color: var(--neon); box-shadow: 0 0 18px rgba(57,255,20,.4); }
+
+  /* ============ SECTIONS ============ */
+  main { position: relative; }
+  .section { display: none; min-height: 100vh; }
+  .section.active { display: block; animation: fade .6s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  /* ---- HOME ---- */
+  #home { padding-top: 0; }
+  .hero {
+    position: relative; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 120px clamp(20px,5vw,56px) 80px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  /* full-bleed showdown background spanning the whole viewport */
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #050706;
+  }
+  .hero-bg video, .hero-bg img {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    min-width: 100%; min-height: 100%; width: 100%; height: 100%;
+    object-fit: cover; display: block; border: 0;
+    animation: heroDrift 26s ease-in-out infinite alternate;
+  }
+  @keyframes heroDrift { from { transform: translate(-50%,-50%) scale(1.05); } to { transform: translate(-50%,-52%) scale(1.13); } }
+  /* subtle cinematic life: drifting fog + flicker */
+  .hero-fog {
+    position: absolute; inset: -20%; z-index: 1; pointer-events: none; opacity: .5;
+    background:
+      radial-gradient(40% 30% at 30% 70%, rgba(80,120,90,.10), transparent 60%),
+      radial-gradient(40% 30% at 70% 65%, rgba(120,60,60,.10), transparent 60%);
+    background-repeat: no-repeat;
+    animation: fogDrift 18s ease-in-out infinite alternate, flicker 6s steps(2) infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes fogDrift {
+    from { transform: translate3d(-3%,0,0) scale(1); }
+    to   { transform: translate3d(3%,-2%,0) scale(1.08); }
+  }
+  @keyframes flicker {
+    0%,100% { opacity: .5; } 48% { opacity: .5; } 50% { opacity: .38; }
+    52% { opacity: .52; } 70% { opacity: .46; }
+  }
+  /* legibility + mood overlays on top of the background */
+  .hero-overlay {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 45%, rgba(5,7,6,.78), rgba(5,7,6,.35) 60%, transparent 100%),
+      linear-gradient(180deg, rgba(5,6,7,.85) 0%, rgba(5,6,7,.25) 30%, rgba(5,6,7,.45) 70%, rgba(5,6,7,.95) 100%);
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 1; opacity: .35; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(57,255,20,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57,255,20,.05) 1px, transparent 1px);
+    background-size: 48px 48px; mask-image: radial-gradient(circle at 50% 40%, #000 20%, transparent 70%);
+  }
+  .hero-inner { position: relative; z-index: 2; width: 100%; max-width: 1100px; }
+  .eyebrow {
+    color: var(--neon); letter-spacing: .42em; text-transform: uppercase;
+    font-size: 12px; font-weight: 700; margin-bottom: 22px;
+  }
+  .title {
+    font-weight: 900; line-height: .92; text-transform: uppercase;
+    font-size: clamp(44px, 11vw, 132px); letter-spacing: -.01em;
+  }
+  .title .veggi { color: var(--neon); text-shadow: 0 0 50px rgba(57,255,20,.6), 0 4px 30px rgba(0,0,0,.9); display: block; }
+  .title .chikn { color: var(--ink); text-shadow: 0 4px 30px rgba(0,0,0,.9); display: block; }
+  .title .fit { color: var(--ink); opacity: .85; font-size: .42em; letter-spacing: .3em; display: block; margin-top: 12px; font-weight: 800; text-shadow: 0 2px 20px rgba(0,0,0,.9);}
+  .tagline {
+    margin: 30px auto 0; max-width: 620px; color: #eef2ef;
+    font-size: clamp(16px, 3vw, 22px); line-height: 1.5; font-weight: 500;
+    text-shadow: 0 2px 24px rgba(0,0,0,.95);
+  }
+  .tagline em { color: var(--neon); font-style: normal; }
+  .hero-actions { margin-top: 40px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    cursor: pointer; font-family: var(--font); font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; font-size: 13px; padding: 16px 34px; border-radius: 999px;
+    border: 1.5px solid var(--neon); transition: all .25s ease;
+  }
+  .btn.solid { background: var(--neon); color: #000; }
+  .btn.solid:hover { box-shadow: 0 0 34px rgba(57,255,20,.6); transform: translateY(-2px); }
+  .btn.ghost { background: transparent; color: var(--neon); }
+  .btn.ghost:hover { background: var(--neon); color: #000; }
+
+  /* ---- SHOWDOWN STAGE ---- */
+  .showdown {
+    position: relative; z-index: 2; margin: 70px auto 0; width: 100%; max-width: 1000px;
+    aspect-ratio: 16/9; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 0 80px rgba(57,255,20,.08), inset 0 0 120px rgba(0,0,0,.8);
+    background: #060807;
+  }
+  .showdown video, .showdown iframe { width: 100%; height: 100%; object-fit: cover; display: block; border: 0; }
+  /* placeholder until clip is generated */
+  .showdown-ph {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px;
+    background:
+      radial-gradient(circle at 20% 60%, rgba(57,255,20,.10), transparent 45%),
+      radial-gradient(circle at 80% 60%, rgba(255,45,45,.10), transparent 45%),
+      linear-gradient(180deg, #0a0d0b, #050706);
+  }
+  .ph-figures { display: flex; align-items: flex-end; justify-content: space-between; width: 100%; max-width: 620px; }
+  .ph-fig { display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: .85; }
+  .ph-silhouette {
+    width: 70px; height: 120px; border-radius: 40px 40px 8px 8px;
+    background: linear-gradient(180deg, #11160f, #05060a); position: relative;
+  }
+  .ph-fig.baby .ph-silhouette { height: 78px; width: 58px; box-shadow: 0 0 26px rgba(57,255,20,.35); border: 1px solid rgba(57,255,20,.4);}
+  .ph-fig.gym .ph-silhouette { box-shadow: 0 0 26px rgba(255,45,45,.35); border: 1px solid rgba(255,45,45,.4);}
+  .ph-vs { color: var(--ink); font-weight: 900; font-size: 28px; letter-spacing: .1em; align-self: center; opacity:.5;}
+  .ph-label { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .ph-text { color: var(--muted); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+  .ph-text strong { color: var(--neon); }
+
+  /* metrics strip */
+  .metrics {
+    position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3,1fr);
+    gap: 1px; max-width: 1000px; margin: 56px auto 0; background: var(--line);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  .metric { background: var(--bg-2); padding: 28px 20px; text-align: center; }
+  .metric .num { font-size: clamp(28px,5vw,44px); font-weight: 900; color: var(--neon); }
+  .metric .lbl { color: var(--muted); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin-top: 6px; }
+
+  /* ---- ABOUT ---- */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 140px clamp(20px,5vw,40px) 100px; }
+  .kicker { color: var(--neon); letter-spacing: .34em; text-transform: uppercase; font-size: 12px; font-weight:700; }
+  .h2 { font-size: clamp(32px,6vw,56px); font-weight: 900; text-transform: uppercase; line-height: 1; margin: 14px 0 28px; }
+  .lead { color: #cdd4cf; font-size: clamp(16px,2.4vw,20px); line-height: 1.65; }
+  .about-card {
+    margin-top: 34px; padding: 30px; border: 1px solid var(--line); border-radius: 16px;
+    background: linear-gradient(180deg, var(--panel), #07090b);
+  }
+  .about-card p { color: var(--muted); line-height: 1.7; }
+  .about-card p + p { margin-top: 16px; }
+
+  /* ---- AUTH ---- */
+  .auth-wrap { max-width: 440px; margin: 0 auto; padding: 150px 20px 100px; }
+  .auth-card {
+    border: 1px solid var(--line); border-radius: 18px; padding: 34px 30px;
+    background: linear-gradient(180deg, var(--panel), #07090b);
+    box-shadow: 0 0 60px rgba(57,255,20,.06);
+  }
+  .auth-switch { display: flex; gap: 6px; background: #0a0d0f; padding: 5px; border-radius: 12px; margin-bottom: 26px; }
+  .auth-switch button {
+    flex: 1; cursor: pointer; border: none; background: none; color: var(--muted);
+    font-family: var(--font); font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    font-size: 12px; padding: 11px; border-radius: 9px; transition: all .2s;
+  }
+  .auth-switch button.active { background: var(--neon); color: #000; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .field input {
+    width: 100%; padding: 14px 16px; border-radius: 10px; background: #06080a;
+    border: 1px solid var(--line); color: var(--ink); font-family: var(--font); font-size: 15px;
+    transition: border .2s, box-shadow .2s;
+  }
+  .field input:focus { outline: none; border-color: var(--neon); box-shadow: 0 0 0 3px rgba(57,255,20,.12); }
+  .auth-name { display: none; }
+  .auth-submit {
+    width: 100%; margin-top: 8px; cursor: pointer; border: none; background: var(--neon); color: #000;
+    font-family: var(--font); font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+    font-size: 13px; padding: 16px; border-radius: 999px; transition: all .2s;
+  }
+  .auth-submit:hover { box-shadow: 0 0 28px rgba(57,255,20,.5); }
+  .auth-alt { text-align: center; color: var(--muted); font-size: 13px; margin-top: 18px; }
+  .auth-alt span { color: var(--neon); cursor: pointer; font-weight: 700; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px; text-align: center; color: #4d554f; font-size: 12px; letter-spacing: .1em; }
+
+  /* small toast shown if the audio file is missing */
+  .audio-missing {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    z-index: 70; background: rgba(13,17,21,.95); border: 1px solid var(--danger);
+    color: #ffd9d9; padding: 10px 16px; border-radius: 10px; font-size: 12px;
+    letter-spacing: .04em; max-width: 90vw; text-align: center; display: none;
+  }
+  .audio-missing code { color: var(--neon); }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 760px) {
+    .nav-tabs { position: fixed; top: 64px; right: 12px; left: 12px; flex-direction: column;
+      background: rgba(8,11,13,.97); border: 1px solid var(--line); border-radius: 14px; padding: 10px;
+      transform: translateY(-12px); opacity: 0; pointer-events: none; transition: all .25s; }
+    .nav-tabs.open { transform: none; opacity: 1; pointer-events: auto; }
+    .tab, .tab.cta { width: 100%; text-align: left; }
+    .nav-toggle { display: block; }
+    .metrics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ENTER GATE (also unlocks audio) -->
+  <div id="gate">
+    <div class="gate-brand"><span class="veggi">VEGGI</span> <span class="chikn">CHIKN</span></div>
+    <div class="gate-sub">Step into the dark room. The showdown begins the moment you enter — sound on.</div>
+    <button class="enter-btn" id="enterBtn">Enter</button>
+    <div class="gate-hint"><span class="pulse-ring"></span></div>
+    <div class="gate-hint">tap to start with audio</div>
+  </div>
+
+  <!-- NAV -->
+  <header class="nav">
+    <div class="brand"><span class="veggi">VEGGI</span> CHIKN</div>
+    <button class="nav-toggle" id="navToggle">&#9776;</button>
+    <nav class="nav-tabs" id="navTabs">
+      <button class="tab active" data-tab="home">Home</button>
+      <button class="tab" data-tab="about">About Me</button>
+      <button class="tab cta" data-tab="auth">Sign In / Sign Up</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ HOME ============ -->
+    <section class="section active" id="home">
+      <div class="hero">
+        <!-- FULL-BLEED SHOWDOWN BACKGROUND -->
+        <div class="hero-bg" id="showdownStage">
+          <img id="showdownImg" src="https://d8j0ntlcm91z4.cloudfront.net/user_3F8iWzvIK6MFT5pms6gK88ATQgB/hf_20260623_225309_efe575b9-7a11-4d66-bf9c-9d7c19f397f7.png" alt="Showdown: baby you vs masked you" />
+        </div>
+        <div class="hero-fog"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-grid"></div>
+
+        <div class="hero-inner">
+          <div class="eyebrow">The Transformation Begins</div>
+          <h1 class="title">
+            <span class="veggi">VEGGI</span>
+            <span class="chikn">CHIKN</span>
+            <span class="fit">Fitness</span>
+          </h1>
+          <p class="tagline">Become <em>unrecognizable</em>. I think, you do.</p>
+
+          <div class="hero-actions">
+            <button class="btn solid" data-tab="auth">Start Your Transformation</button>
+            <button class="btn ghost" data-tab="about">My Story</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- METRICS (below the fold) -->
+      <div style="background:var(--bg); padding: 0 clamp(20px,5vw,56px) 90px;">
+        <div class="metrics">
+          <div class="metric"><div class="num">1</div><div class="lbl">Version of You Left Behind</div></div>
+          <div class="metric"><div class="num">&#8734;</div><div class="lbl">Reps to Unrecognizable</div></div>
+          <div class="metric"><div class="num">0</div><div class="lbl">Excuses Accepted</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ABOUT ============ -->
+    <section class="section" id="about">
+      <div class="wrap">
+        <div class="kicker">About Me</div>
+        <h2 class="h2">From Then<br>To Unrecognizable</h2>
+        <p class="lead">This is the story of the showdown — the kid I was versus the version I built in the dark.</p>
+        <div class="about-card">
+          <p>Placeholder bio. Tell me what you want here and I'll write it: who you were, the turning point, what Veggi Chikn Fitness stands for, and what you'll do for the people who train with you.</p>
+          <p>We can drop in your real before/after photos, your training philosophy, certifications, and a call to action.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AUTH ============ -->
+    <section class="section" id="auth">
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="auth-switch">
+            <button id="signinTab" class="active">Sign In</button>
+            <button id="signupTab">Sign Up</button>
+          </div>
+          <form id="authForm" onsubmit="return false;">
+            <div class="field auth-name" id="nameField">
+              <label>Full Name</label>
+              <input type="text" placeholder="Your name" />
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" placeholder="••••••••" />
+            </div>
+            <button class="auth-submit" id="authSubmit">Sign In</button>
+          </form>
+          <div class="auth-alt" id="authAlt">
+            New here? <span id="altSwitch">Create an account</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>© <span id="yr"></span> Veggi Chikn Fitness — Become Unrecognizable.</footer>
+
+  <!-- MUTE TOGGLE -->
+  <button class="mute-btn" id="muteBtn" title="Toggle sound">&#128266;</button>
+
+  <!-- shown only if the audio file isn't found -->
+  <div class="audio-missing" id="audioMissing">
+    Add your track at <code>audio/veggi-theme.mp3</code> to enable the soundtrack.
+  </div>
+
+  <!-- Local background audio (no external connection). Drop your file at audio/veggi-theme.mp3 -->
+  <audio id="bgAudio" loop preload="auto">
+    <source src="audio/veggi-theme.mp3" type="audio/mpeg" />
+    <source src="audio/veggi-theme.m4a" type="audio/mp4" />
+    <source src="audio/veggi-theme.ogg" type="audio/ogg" />
+  </audio>
+
+<script>
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  /* ---------- TAB ROUTING ---------- */
+  const tabs = document.querySelectorAll('.tab');
+  const sections = document.querySelectorAll('.section');
+  function goTo(name) {
+    sections.forEach(s => s.classList.toggle('active', s.id === name));
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.getElementById('navTabs').classList.remove('open');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('[data-tab]').forEach(el => {
+    el.addEventListener('click', () => goTo(el.dataset.tab));
+  });
+
+  /* mobile nav */
+  document.getElementById('navToggle').addEventListener('click', () => {
+    document.getElementById('navTabs').classList.toggle('open');
+  });
+
+  /* ---------- AUTH SWITCH ---------- */
+  const signinTab = document.getElementById('signinTab');
+  const signupTab = document.getElementById('signupTab');
+  const nameField = document.getElementById('nameField');
+  const authSubmit = document.getElementById('authSubmit');
+  const authAlt = document.getElementById('authAlt');
+  function setAuth(mode) {
+    const signup = mode === 'signup';
+    signupTab.classList.toggle('active', signup);
+    signinTab.classList.toggle('active', !signup);
+    nameField.style.display = signup ? 'block' : 'none';
+    authSubmit.textContent = signup ? 'Create Account' : 'Sign In';
+    authAlt.innerHTML = signup
+      ? 'Already training? <span id="altSwitch">Sign in</span>'
+      : 'New here? <span id="altSwitch">Create an account</span>';
+    document.getElementById('altSwitch').addEventListener('click', () => setAuth(signup ? 'signin' : 'signup'));
+  }
+  signinTab.addEventListener('click', () => setAuth('signin'));
+  signupTab.addEventListener('click', () => setAuth('signup'));
+  document.getElementById('altSwitch').addEventListener('click', () => setAuth('signup'));
+
+  /* ---------- LOCAL BACKGROUND AUDIO (no external connection) ---------- */
+  const audio = document.getElementById('bgAudio');
+  const muteBtn = document.getElementById('muteBtn');
+  let isMuted = false, audioMissing = false;
+
+  audio.volume = 0.65;
+
+  // detect a missing/unplayable audio file so we can tell the user instead of failing silently
+  audio.addEventListener('error', flagMissing);
+  audio.querySelectorAll('source').forEach(s => s.addEventListener('error', () => {
+    // if the last source also failed, the file is missing
+    if (audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) flagMissing();
+  }));
+
+  function flagMissing() {
+    audioMissing = true;
+    const t = document.getElementById('audioMissing');
+    if (t) t.style.display = 'block';
+  }
+
+  function startAudio() {
+    if (audioMissing) { const t = document.getElementById('audioMissing'); if (t) t.style.display = 'block'; return; }
+    audio.muted = false;
+    const p = audio.play();
+    if (p && p.catch) p.catch(() => { /* will play on next user interaction */ });
+    isMuted = false;
+    updateMuteIcon();
+  }
+
+  function updateMuteIcon() { muteBtn.innerHTML = (isMuted || audio.paused) ? '&#128263;' : '&#128266;'; }
+
+  /* ---------- ENTER GATE ---------- */
+  document.getElementById('enterBtn').addEventListener('click', () => {
+    document.getElementById('gate').classList.add('hidden');
+    startAudio();
+  });
+
+  /* ---------- MUTE TOGGLE ---------- */
+  muteBtn.addEventListener('click', () => {
+    if (audioMissing) { const t = document.getElementById('audioMissing'); if (t) t.style.display = 'block'; return; }
+    if (audio.paused || audio.muted) { audio.muted = false; audio.play().catch(()=>{}); isMuted = false; }
+    else { audio.pause(); isMuted = true; }
+    updateMuteIcon();
+  });
+</script>
+</body>
+</html>

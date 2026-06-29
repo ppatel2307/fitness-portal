@@ -63,7 +63,7 @@ export function requireRole(...roles: Role[]) {
       return next(new UnauthorizedError('Not authenticated'));
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!roles.some(r => r === req.user!.role)) {
       return next(new ForbiddenError('Insufficient permissions'));
     }
 

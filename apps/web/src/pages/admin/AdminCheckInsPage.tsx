@@ -78,10 +78,10 @@ export function AdminCheckInsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium text-text-primary">
-                          {checkIn.client?.name}
+                          {(checkIn as CheckIn & { user?: { name: string; email: string } }).user?.name}
                         </p>
                         <p className="text-xs text-text-muted">
-                          {checkIn.client?.email}
+                          {(checkIn as CheckIn & { user?: { name: string; email: string } }).user?.email}
                         </p>
                       </div>
                     </TableCell>

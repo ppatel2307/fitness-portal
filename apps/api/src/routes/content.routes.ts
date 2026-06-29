@@ -67,7 +67,7 @@ router.get(
   asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
     let where = {};
 
-    if (req.user!.role === 'CLIENT') {
+    if (req.user!.role === 'USER') {
       where = {
         OR: [
           { audienceType: 'ALL' },
@@ -115,7 +115,7 @@ router.get(
     }
 
     // Check if client can access this announcement
-    if (req.user!.role === 'CLIENT') {
+    if (req.user!.role === 'USER') {
       if (
         announcement.audienceType !== 'ALL' &&
         !announcement.recipients.some((r) => r.id === req.user!.userId)

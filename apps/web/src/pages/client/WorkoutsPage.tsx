@@ -1,331 +1,387 @@
-/**
- * Client Workouts Page
- * Weekly schedule view with workout details
- */
+import React, { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
+import toast from 'react-hot-toast';
+import type { WorkoutPlan, WorkoutDay, Exercise, WorkoutCompletion } from '@/types';
+import { Play, CheckCircle, ChevronLeft, ChevronRight, Pause, RotateCcw, X, Dumbbell, Clock, Target } from 'lucide-react';
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, getErrorMessage } from '@/lib/api';
-import { getDayName, getDayShortName, formatDate } from '@/lib/utils';
-import { PageHeader } from '@/components/layout/PageHeader';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Button,
-  Badge,
-  EmptyState,
-  Modal,
-  Textarea,
-  SkeletonCard,
-} from '@/components/ui';
-import type { WorkoutPlan, WorkoutDay, Exercise, ApiResponse } from '@/types';
-import { Check, Clock, Dumbbell, Play, ChevronDown, ChevronUp } from 'lucide-react';
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function WorkoutsPage() {
-  const queryClient = useQueryClient();
-  const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
-  const [completeModalOpen, setCompleteModalOpen] = useState(false);
-  const [comment, setComment] = useState('');
-  const today = new Date();
-  const todayDayOfWeek = today.getDay();
+interface PlanData {
+  plan: WorkoutPlan | null;
+  completions: WorkoutCompletion[];
+  todayDayOfWeek: number;
+}
 
-  // Fetch workout plan
-  const { data: workoutData, isLoading } = useQuery({
-    queryKey: ['my-workout-plan'],
-    queryFn: async () => {
-      const response = await api.get<ApiResponse<{
-        plan: WorkoutPlan | null;
-        todayCompletions: Array<{ workoutDayId: string; completedAt: string }>;
-        todayDayOfWeek: number;
-      }>>('/workouts/my-plan');
-      return response.data.data;
-    },
-  });
+// ==================== GUIDED WORKOUT MODE ====================
 
-  // Fetch all completions
-  const { data: completions } = useQuery({
-    queryKey: ['workout-completions'],
-    queryFn: async () => {
-      const response = await api.get<ApiResponse<Array<{ workoutDayId: string; completedAt: string }>>>('/workouts/completions');
-      return response.data.data;
-    },
-  });
+function GuidedWorkout({
+  workoutDay,
+  onComplete,
+  onClose,
+}: {
+  workoutDay: WorkoutDay;
+  onComplete: (durationMinutes: number, feedback: string) => void;
+  onClose: () => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [feedback, setFeedback] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
 
-  // Complete workout mutation
-  const completeMutation = useMutation({
-    mutationFn: async (data: { workoutDayId: string; comment?: string }) => {
-      const response = await api.post('/workouts/complete', data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-workout-plan'] });
-      queryClient.invalidateQueries({ queryKey: ['workout-completions'] });
-      setCompleteModalOpen(false);
-      setComment('');
-      setSelectedDay(null);
-    },
-  });
+  const exercises = workoutDay.exercises;
+  const current = exercises[currentIndex];
 
-  const plan = workoutData?.plan;
-  const todayCompletions = workoutData?.todayCompletions || [];
+  useEffect(() => {
+    if (isPaused || showSummary) return;
+    const timer = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(timer);
+  }, [isPaused, showSummary]);
 
-  // Create week schedule
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - today.getDay() + i);
-    const workoutDay = plan?.workoutDays.find((d) => d.dayOfWeek === i);
-    const isCompleted = todayCompletions.some(
-      (c) => workoutDay && c.workoutDayId === workoutDay.id
-    );
-    return {
-      dayOfWeek: i,
-      date,
-      workoutDay,
-      isToday: i === todayDayOfWeek,
-      isPast: i < todayDayOfWeek,
-      isCompleted,
-    };
-  });
+  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const handleComplete = (day: WorkoutDay) => {
-    setSelectedDay(day);
-    setCompleteModalOpen(true);
+  const getYouTubeEmbedUrl = (url: string) => {
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
   };
 
-  const submitCompletion = () => {
-    if (selectedDay) {
-      completeMutation.mutate({
-        workoutDayId: selectedDay.id,
-        comment: comment || undefined,
-      });
+  const handleNext = () => {
+    if (currentIndex < exercises.length - 1) {
+      setCurrentIndex(i => i + 1);
+    } else {
+      setShowSummary(true);
     }
   };
 
-  if (isLoading) {
+  const handlePrev = () => {
+    if (currentIndex > 0) setCurrentIndex(i => i - 1);
+  };
+
+  if (showSummary) {
     return (
-      <div className="p-4 md:p-6 space-y-6">
-        <PageHeader title="Workouts" description="Your weekly training schedule" />
-        <div className="grid gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
+      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Workout Complete!</h2>
+          <p className="text-zinc-400 mb-1">{workoutDay.title}</p>
+          <p className="text-3xl font-bold text-accent mb-6">{formatTime(elapsed)}</p>
+          <div className="mb-6">
+            <label className="block text-sm text-zinc-400 mb-2">How did it go? (optional)</label>
+            <textarea
+              className="w-full px-4 py-3 bg-zinc-800 border border-border rounded-xl text-white placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-accent"
+              rows={3}
+              placeholder="Notes, feelings, modifications..."
+              value={feedback}
+              onChange={e => setFeedback(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => onComplete(Math.floor(elapsed / 60), feedback)}
+            className="w-full py-3 bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl transition"
+          >
+            Save Workout
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <PageHeader
-        title="Workouts"
-        description={plan ? plan.title : 'Your weekly training schedule'}
-      />
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+      {/* Header */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-zinc-500">Guided Workout</p>
+          <h2 className="font-semibold text-white">{workoutDay.title}</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-accent font-mono font-bold">{formatTime(elapsed)}</span>
+          <button onClick={() => setIsPaused(p => !p)} className="p-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition">
+            {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+          </button>
+          <button onClick={onClose} className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-      {!plan ? (
-        <EmptyState
-          title="No Workout Plan"
-          description="Your trainer hasn't assigned a workout plan yet. Check back soon!"
-          icon={<Dumbbell className="w-6 h-6 text-text-muted" />}
-        />
-      ) : (
-        <>
-          {/* Week Calendar View */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-7 gap-1 md:gap-2">
-                {weekDays.map((day) => (
-                  <button
-                    key={day.dayOfWeek}
-                    onClick={() => day.workoutDay && setSelectedDay(day.workoutDay)}
-                    className={`p-2 md:p-3 rounded-lg text-center transition-colors ${
-                      day.isToday
-                        ? 'bg-accent text-white'
-                        : day.workoutDay
-                        ? 'bg-surface hover:bg-surface-hover'
-                        : 'bg-transparent'
-                    }`}
-                  >
-                    <div className="text-xs font-medium">
-                      {getDayShortName(day.dayOfWeek)}
-                    </div>
-                    <div className="text-lg font-semibold mt-1">
-                      {day.date.getDate()}
-                    </div>
-                    {day.workoutDay && (
-                      <div className="mt-1">
-                        {day.isCompleted ? (
-                          <Check className="w-4 h-4 mx-auto text-success" />
-                        ) : (
-                          <div className="w-2 h-2 rounded-full bg-accent mx-auto" />
-                        )}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Progress */}
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs text-zinc-500">Exercise {currentIndex + 1} of {exercises.length}</span>
+          <span className="text-xs text-zinc-500">{Math.round((currentIndex / exercises.length) * 100)}%</span>
+        </div>
+        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-accent rounded-full transition-all"
+            style={{ width: `${((currentIndex + 1) / exercises.length) * 100}%` }}
+          />
+        </div>
+      </div>
 
-          {/* Workout List */}
-          <div className="space-y-4">
-            {weekDays.map((day) => {
-              if (!day.workoutDay) return null;
-              const isExpanded = selectedDay?.id === day.workoutDay.id;
-
+      {/* Exercise card */}
+      <div className="px-4 pb-4 max-w-2xl mx-auto">
+        <div className="bg-card border border-border rounded-2xl p-6 mb-4">
+          <h3 className="text-2xl font-bold text-white mb-4">{current.name}</h3>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[
+              { icon: Target, label: 'Sets', value: `${current.sets}` },
+              { icon: RotateCcw, label: 'Reps', value: current.reps },
+              { icon: Clock, label: 'Rest', value: current.restSeconds ? `${current.restSeconds}s` : '—' },
+            ].map(item => {
+              const Icon = item.icon;
               return (
-                <Card key={day.dayOfWeek}>
-                  <div
-                    className="p-4 cursor-pointer"
-                    onClick={() =>
-                      setSelectedDay(isExpanded ? null : day.workoutDay!)
-                    }
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            day.isToday
-                              ? 'bg-accent'
-                              : day.isCompleted
-                              ? 'bg-success-muted'
-                              : 'bg-surface'
-                          }`}
-                        >
-                          {day.isCompleted ? (
-                            <Check className="w-5 h-5 text-success" />
-                          ) : (
-                            <Dumbbell
-                              className={`w-5 h-5 ${
-                                day.isToday ? 'text-white' : 'text-text-secondary'
-                              }`}
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-text-primary">
-                            {day.workoutDay.title}
-                          </h3>
-                          <p className="text-sm text-text-secondary">
-                            {getDayName(day.dayOfWeek)} •{' '}
-                            {day.workoutDay.exercises.length} exercises
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {day.isToday && !day.isCompleted && (
-                          <Badge variant="info">Today</Badge>
-                        )}
-                        {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-text-muted" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-text-muted" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-border">
-                      <div className="space-y-3 mt-4">
-                        {day.workoutDay.exercises.map((exercise, idx) => (
-                          <ExerciseItem key={exercise.id} exercise={exercise} index={idx + 1} />
-                        ))}
-                      </div>
-
-                      {!day.isCompleted && (
-                        <Button
-                          className="w-full mt-4"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleComplete(day.workoutDay!);
-                          }}
-                          leftIcon={<Check className="w-4 h-4" />}
-                        >
-                          Mark as Completed
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </Card>
+                <div key={item.label} className="bg-zinc-800/50 rounded-xl p-3 text-center">
+                  <Icon className="w-4 h-4 text-accent mx-auto mb-1" />
+                  <p className="text-lg font-bold text-white">{item.value}</p>
+                  <p className="text-xs text-zinc-500">{item.label}</p>
+                </div>
               );
             })}
           </div>
-        </>
-      )}
-
-      {/* Complete Modal */}
-      <Modal
-        isOpen={completeModalOpen}
-        onClose={() => setCompleteModalOpen(false)}
-        title="Complete Workout"
-        description={`Mark "${selectedDay?.title}" as completed`}
-      >
-        <div className="space-y-4">
-          <Textarea
-            label="Notes (optional)"
-            placeholder="How did the workout go? Any notes for your trainer..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              className="flex-1"
-              onClick={() => setCompleteModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={submitCompletion}
-              isLoading={completeMutation.isPending}
-            >
-              Complete
-            </Button>
-          </div>
+          {current.notes && (
+            <div className="bg-accent/10 border border-accent/20 rounded-xl p-3 mb-4">
+              <p className="text-sm text-zinc-300">{current.notes}</p>
+            </div>
+          )}
+          {current.youtubeUrl && getYouTubeEmbedUrl(current.youtubeUrl) && (
+            <div className="rounded-xl overflow-hidden aspect-video">
+              <iframe
+                src={`${getYouTubeEmbedUrl(current.youtubeUrl)}?autoplay=0&rel=0`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={current.name}
+              />
+            </div>
+          )}
         </div>
-      </Modal>
+
+        {/* Navigation */}
+        <div className="flex gap-3">
+          <button
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white rounded-xl flex items-center justify-center gap-2 transition"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </button>
+          <button
+            onClick={handleNext}
+            className="flex-2 px-8 py-3 bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl flex items-center gap-2 transition"
+          >
+            {currentIndex < exercises.length - 1 ? (
+              <>Next <ChevronRight className="w-4 h-4" /></>
+            ) : 'Finish Workout'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function ExerciseItem({ exercise, index }: { exercise: Exercise; index: number }) {
-  return (
-    <div className="flex items-start gap-3 p-3 bg-background-secondary rounded-lg">
-      <div className="w-6 h-6 rounded-full bg-surface flex items-center justify-center flex-shrink-0">
-        <span className="text-xs font-medium text-text-secondary">{index}</span>
+// ==================== MAIN PAGE ====================
+
+export function WorkoutsPage() {
+  const [data, setData] = useState<PlanData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
+  const [guidedWorkout, setGuidedWorkout] = useState<WorkoutDay | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api.get('/workouts/my-plan');
+      if (res.data.success) setData(res.data.data);
+    } catch { /* silent */ } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const completeWorkout = async (workoutDayId: string, durationMinutes: number, feedback: string) => {
+    try {
+      await api.post('/workouts/complete', { workoutDayId, durationMinutes, feedback });
+      toast.success('Workout saved! Great job!');
+      setGuidedWorkout(null);
+      setSelectedDay(null);
+      await load();
+    } catch {
+      toast.error('Failed to save workout');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-text-primary">{exercise.name}</h4>
-        <div className="flex flex-wrap gap-2 mt-1 text-sm text-text-secondary">
-          <span>{exercise.sets} sets</span>
-          <span>×</span>
-          <span>{exercise.reps} reps</span>
-          {exercise.rpe && <span>@ RPE {exercise.rpe}</span>}
-        </div>
-        {exercise.restSeconds && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-text-muted">
-            <Clock className="w-3 h-3" />
-            <span>{exercise.restSeconds}s rest</span>
+    );
+  }
+
+  if (!data?.plan) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <Dumbbell className="w-12 h-12 text-zinc-600 mb-4" />
+        <h2 className="text-xl font-semibold text-white mb-2">No Workout Plan Yet</h2>
+        <p className="text-zinc-400 max-w-sm">Your coach will create a personalized workout plan for you soon. Check back later!</p>
+      </div>
+    );
+  }
+
+  const { plan, completions, todayDayOfWeek } = data;
+
+  const isCompletedToday = (dayId: string) =>
+    completions.some(c => {
+      const d = new Date(c.completedAt);
+      const today = new Date();
+      return c.workoutDayId === dayId && d.toDateString() === today.toDateString();
+    });
+
+  const todayWorkout = plan.workoutDays.find(d => d.dayOfWeek === todayDayOfWeek);
+
+  return (
+    <>
+      {guidedWorkout && (
+        <GuidedWorkout
+          workoutDay={guidedWorkout}
+          onComplete={(duration, feedback) => completeWorkout(guidedWorkout.id, duration, feedback)}
+          onClose={() => setGuidedWorkout(null)}
+        />
+      )}
+
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-white">Workouts</h1>
+
+        {/* Today's Workout */}
+        {todayWorkout && !todayWorkout.isRestDay && (
+          <div className="bg-card border border-accent/30 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs text-accent font-medium uppercase tracking-wide mb-1">Today's Workout</p>
+                <h2 className="text-xl font-bold text-white">{todayWorkout.title}</h2>
+                <p className="text-sm text-zinc-400 mt-0.5">
+                  {todayWorkout.exercises.length} exercises · ~{Math.round(todayWorkout.exercises.length * 5)}min
+                </p>
+              </div>
+              {isCompletedToday(todayWorkout.id) ? (
+                <div className="flex items-center gap-2 text-green-400 bg-green-400/10 px-4 py-2 rounded-xl">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Completed!</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setGuidedWorkout(todayWorkout)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl transition"
+                >
+                  <Play className="w-4 h-4" />
+                  Start Workout
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {todayWorkout.exercises.slice(0, 5).map(ex => (
+                <span key={ex.id} className="text-sm bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full">{ex.name}</span>
+              ))}
+              {todayWorkout.exercises.length > 5 && (
+                <span className="text-sm text-zinc-500">+{todayWorkout.exercises.length - 5} more</span>
+              )}
+            </div>
           </div>
         )}
-        {exercise.notes && (
-          <p className="text-xs text-text-muted mt-2 italic">{exercise.notes}</p>
+
+        {todayWorkout?.isRestDay && (
+          <div className="bg-card border border-border rounded-2xl p-6 text-center">
+            <p className="text-2xl mb-2">😴</p>
+            <h2 className="text-xl font-bold text-white">Rest Day</h2>
+            <p className="text-zinc-400 mt-1">Today is your scheduled rest day. Recover and recharge!</p>
+          </div>
         )}
-        {exercise.videoUrl && (
-          <a
-            href={exercise.videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-2"
-          >
-            <Play className="w-3 h-3" />
-            Watch demo
-          </a>
-        )}
+
+        {/* Weekly Schedule */}
+        <div className="bg-card border border-border rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">{plan.title} — Weekly Schedule</h2>
+          <div className="grid grid-cols-7 gap-1 mb-4">
+            {DAY_SHORT.map((day, i) => {
+              const workoutDay = plan.workoutDays.find(d => d.dayOfWeek === i);
+              const isToday = i === todayDayOfWeek;
+              const completed = workoutDay ? isCompletedToday(workoutDay.id) : false;
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => workoutDay && setSelectedDay(workoutDay === selectedDay ? null : workoutDay)}
+                  className={`p-2 rounded-xl text-center transition ${
+                    isToday ? 'ring-1 ring-accent' : ''
+                  } ${
+                    workoutDay && !workoutDay.isRestDay
+                      ? completed
+                        ? 'bg-green-500/20 hover:bg-green-500/30'
+                        : selectedDay?.id === workoutDay.id
+                        ? 'bg-accent/20'
+                        : 'bg-zinc-800 hover:bg-zinc-700'
+                      : 'bg-zinc-900 opacity-50'
+                  }`}
+                >
+                  <p className={`text-xs font-medium ${isToday ? 'text-accent' : 'text-zinc-400'}`}>{day}</p>
+                  <div className="mt-1">
+                    {completed ? (
+                      <CheckCircle className="w-4 h-4 text-green-400 mx-auto" />
+                    ) : workoutDay?.isRestDay ? (
+                      <span className="text-xs text-zinc-600">Rest</span>
+                    ) : workoutDay ? (
+                      <Dumbbell className="w-4 h-4 text-zinc-500 mx-auto" />
+                    ) : (
+                      <span className="text-xs text-zinc-700">—</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected day detail */}
+          {selectedDay && !selectedDay.isRestDay && (
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-white">{DAY_NAMES[selectedDay.dayOfWeek]} — {selectedDay.title}</h3>
+                {!isCompletedToday(selectedDay.id) && (
+                  <button
+                    onClick={() => setGuidedWorkout(selectedDay)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-sm rounded-lg transition"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    Start
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {selectedDay.exercises.map((ex, i) => (
+                  <div key={ex.id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl">
+                    <span className="text-xs text-zinc-600 w-5">{i + 1}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">{ex.name}</p>
+                      {ex.notes && <p className="text-xs text-zinc-500 mt-0.5">{ex.notes}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-white">{ex.sets} × {ex.reps}</p>
+                      {ex.restSeconds && <p className="text-xs text-zinc-500">{ex.restSeconds}s rest</p>}
+                    </div>
+                    {ex.youtubeUrl && (
+                      <a href={ex.youtubeUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-accent hover:text-accent/80 transition">▶</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

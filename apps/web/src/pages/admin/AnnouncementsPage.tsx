@@ -21,7 +21,15 @@ import {
   Badge,
   EmptyState,
 } from '@/components/ui';
-import type { Announcement, User, ApiResponse } from '@/types';
+import type { User, ApiResponse } from '@/types';
+
+interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  audienceType: 'ALL' | 'SPECIFIC';
+  createdAt: string;
+}
 import { Plus, Trash2, Bell, Users } from 'lucide-react';
 
 const announcementSchema = z.object({

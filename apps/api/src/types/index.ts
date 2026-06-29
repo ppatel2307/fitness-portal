@@ -1,7 +1,3 @@
-/**
- * Shared types for the API
- */
-
 import { Request } from 'express';
 import { Role } from '@prisma/client';
 

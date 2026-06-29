@@ -139,7 +139,7 @@ export function CheckInPage() {
                 </div>
               )}
               <p className="text-xs text-text-muted">
-                Submitted on {formatDate(thisWeekCheckIn.createdAt, 'short')}
+                Submitted on {formatDate(thisWeekCheckIn.weekOf, 'short')}
               </p>
             </div>
           ) : (

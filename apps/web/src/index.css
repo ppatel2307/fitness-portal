@@ -9,16 +9,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #12171d;
+  background: #0b0f12;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2c3642;
+  background: #222b34;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4654;
+  background: #39ff14;
 }
 
 /* Base styles */
@@ -60,10 +60,30 @@ input[type="number"] {
 .skeleton {
   background: linear-gradient(
     90deg,
-    #1a2028 0%,
-    #232b35 50%,
-    #1a2028 100%
+    #11161b 0%,
+    #1b232b 50%,
+    #11161b 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* ---- VEGGI CHIKN neon helpers ---- */
+.neon-text { text-shadow: 0 0 24px rgba(57, 255, 20, 0.55); }
+.text-glow-strong { text-shadow: 0 0 40px rgba(57, 255, 20, 0.55), 0 4px 30px rgba(0, 0, 0, 0.9); }
+.text-shadow-soft { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.9); }
+
+/* faint grid backdrop used on hero / dashboards */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(57, 255, 20, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* slow cinematic drift for hero background image */
+@keyframes heroDrift {
+  from { transform: translate(-50%, -50%) scale(1.05); }
+  to   { transform: translate(-50%, -52%) scale(1.13); }
+}
+.animate-hero-drift { animation: heroDrift 26s ease-in-out infinite alternate; }
