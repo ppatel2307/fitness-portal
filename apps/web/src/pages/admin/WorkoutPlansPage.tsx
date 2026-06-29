@@ -96,14 +96,18 @@ export function WorkoutPlansPage() {
   const createMutation = useMutation({
     mutationFn: async (data: CreatePlanForm) => {
       const response = await api.post('/workouts/plans', {
-        ...data,
+        userId: data.clientId,
+        title: data.title,
         workoutDays: data.workoutDays.map((day) => ({
-          ...day,
+          dayOfWeek: day.dayOfWeek,
+          title: day.title,
           exercises: day.exercises.map((ex, idx) => ({
-            ...ex,
-            rpe: ex.rpe || undefined,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
             restSeconds: ex.restSeconds || undefined,
-            videoUrl: ex.videoUrl || undefined,
+            notes: ex.notes || undefined,
+            youtubeUrl: ex.videoUrl || undefined,
             orderIndex: idx,
           })),
         })),
