@@ -5,6 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { NotFoundError } from '../lib/errors.js';
+import { NotificationService } from '../services/notification.service.js';
 import { ApiResponse, AuthenticatedRequest } from '../types/index.js';
 
 const router = Router();
@@ -65,6 +66,8 @@ router.get(
         onboarding: { select: { completed: true, fitnessGoals: true } },
         workoutPlans: { where: { active: true }, select: { id: true, title: true }, take: 1 },
         assignedManager: { include: { manager: { select: { id: true, name: true } } } },
+        accountabilitySubscription: { select: { tier: true, active: true } },
+        missedWorkoutCharges: { where: { status: 'PENDING' }, select: { amount: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -93,11 +96,87 @@ router.get(
         workoutCompletions: { orderBy: { completedAt: 'desc' }, take: 30 },
         userRequests: { orderBy: { createdAt: 'desc' } },
         assignedManager: { include: { manager: { select: { id: true, name: true, email: true } } } },
+        accountabilitySubscription: true,
+        missedWorkoutCharges: { orderBy: { workoutDate: 'desc' } },
       },
     });
 
     if (!user) throw new NotFoundError('User');
     res.json({ success: true, data: user });
+  })
+);
+
+// Add a $10 missed-workout charge to a user's accountability ledger (manual).
+router.post(
+  '/users/:userId/charge',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      amount: z.number().int().positive().optional(), // cents; defaults to 1000 ($10)
+      workoutDate: z.string().optional(),
+    }),
+  }),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const { userId } = req.params;
+    const { amount, workoutDate } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User');
+
+    const charge = await prisma.missedWorkoutCharge.create({
+      data: {
+        userId,
+        amount: amount ?? 1000,
+        workoutDate: workoutDate ? new Date(workoutDate) : new Date(),
+        status: 'PENDING',
+      },
+    });
+
+    await NotificationService.create(
+      userId,
+      'WORKOUT_MISSED',
+      'Missed Workout Charge',
+      `A $${((amount ?? 1000) / 100).toFixed(0)} accountability charge was added. Check your balance and pay your coach.`,
+      { chargeId: charge.id }
+    );
+
+    res.status(201).json({ success: true, data: charge });
+  })
+);
+
+// Set a user's accountability tier (free | accountability).
+router.patch(
+  '/users/:userId/tier',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({ body: z.object({ tier: z.enum(['free', 'accountability']) }) }),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const { userId } = req.params;
+    const { tier } = req.body;
+    const active = tier === 'accountability';
+
+    const sub = await prisma.accountabilitySubscription.upsert({
+      where: { userId },
+      create: { userId, tier, active },
+      update: { tier, active },
+    });
+
+    res.json({ success: true, data: sub });
+  })
+);
+
+// Mark a user's pending charges as paid (admin side).
+router.post(
+  '/users/:userId/charges/mark-paid',
+  authenticate,
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res: Response<ApiResponse>) => {
+    const { userId } = req.params;
+    const result = await prisma.missedWorkoutCharge.updateMany({
+      where: { userId, status: 'PENDING' },
+      data: { status: 'SUCCEEDED' },
+    });
+    res.json({ success: true, data: { cleared: result.count } });
   })
 );
 

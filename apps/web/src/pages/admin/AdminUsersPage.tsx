@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
-import { Users, Search, UserCheck } from 'lucide-react';
+import { Users, Search } from 'lucide-react';
+import { formatUsd } from '@/lib/payment';
 
 interface UserOverview {
   id: string;
@@ -13,6 +14,8 @@ interface UserOverview {
   onboarding?: { completed: boolean };
   workoutPlans?: { id: string; title: string }[];
   assignedManager?: { manager: { id: string; name: string } };
+  accountabilitySubscription?: { tier: string; active: boolean } | null;
+  missedWorkoutCharges?: { amount: number }[];
 }
 
 export default function AdminUsersPage() {
@@ -60,6 +63,32 @@ export default function AdminUsersPage() {
     }
   };
 
+  const setTier = async (userId: string, tier: 'free' | 'accountability') => {
+    try {
+      await api.patch(`/admin/users/${userId}/tier`, { tier });
+      toast.success(`Tier set to ${tier}`);
+      await load();
+    } catch (e) { toast.error(getErrorMessage(e)); }
+  };
+
+  const addCharge = async (userId: string) => {
+    try {
+      await api.post(`/admin/users/${userId}/charge`, {});
+      toast.success('$10 missed-workout charge added');
+      await load();
+    } catch (e) { toast.error(getErrorMessage(e)); }
+  };
+
+  const markPaid = async (userId: string) => {
+    try {
+      await api.post(`/admin/users/${userId}/charges/mark-paid`);
+      toast.success('Balance cleared');
+      await load();
+    } catch (e) { toast.error(getErrorMessage(e)); }
+  };
+
+  const balanceOf = (u: UserOverview) => (u.missedWorkoutCharges || []).reduce((s, c) => s + c.amount, 0);
+
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
@@ -90,7 +119,7 @@ export default function AdminUsersPage() {
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                {['User', 'Onboarding', 'Workout Plan', 'Manager', 'Status', 'Actions'].map(h => (
+                {['User', 'Onboarding', 'Workout Plan', 'Manager', 'Accountability', 'Status', 'Actions'].map(h => (
                   <th key={h} className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wide px-6 py-4">{h}</th>
                 ))}
               </tr>
@@ -137,6 +166,27 @@ export default function AdminUsersPage() {
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <select
+                        className="px-2 py-1 bg-zinc-800 border border-border rounded-lg text-xs text-white focus:outline-none"
+                        value={user.accountabilitySubscription?.tier === 'accountability' ? 'accountability' : 'free'}
+                        onChange={e => setTier(user.id, e.target.value as 'free' | 'accountability')}
+                      >
+                        <option value="free">Free</option>
+                        <option value="accountability">Accountability</option>
+                      </select>
+                      <span className={`text-xs font-semibold ${balanceOf(user) > 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                        Balance: {formatUsd(balanceOf(user))}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => addCharge(user.id)} className="text-xs px-2 py-1 rounded-lg text-red-400 hover:bg-red-400/10 transition">+$10</button>
+                        {balanceOf(user) > 0 && (
+                          <button onClick={() => markPaid(user.id)} className="text-xs px-2 py-1 rounded-lg text-accent hover:bg-accent/10 transition">Clear</button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`text-xs px-2 py-1 rounded-full ${user.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

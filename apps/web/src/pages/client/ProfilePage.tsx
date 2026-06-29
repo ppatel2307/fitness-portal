@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, Shield, CreditCard, Activity } from 'lucide-react';
+import { User, Shield, CreditCard, Activity, Check } from 'lucide-react';
+import { VENMO_URL, VENMO_HANDLE, ZELLE_PHONE, formatUsd } from '@/lib/payment';
+
+interface Charge {
+  id: string;
+  amount: number;
+  workoutDate: string;
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+}
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -56,6 +64,35 @@ export default function ProfilePage() {
   };
 
   const isAccountabilityActive = user?.accountabilitySubscription?.active;
+
+  // ---- Accountability ledger (manual Venmo/Zelle) ----
+  const [charges, setCharges] = useState<Charge[]>([]);
+  const [isPaying, setIsPaying] = useState(false);
+
+  const loadCharges = async () => {
+    try {
+      const res = await api.get('/users/charges');
+      if (res.data.success) setCharges(res.data.data || []);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => { loadCharges(); }, []);
+
+  const pendingCharges = charges.filter(c => c.status === 'PENDING');
+  const balanceCents = pendingCharges.reduce((sum, c) => sum + c.amount, 0);
+
+  const markPaid = async () => {
+    setIsPaying(true);
+    try {
+      await api.post('/users/charges/pay');
+      toast.success('Marked as paid. Thanks for staying accountable!');
+      await loadCharges();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -183,15 +220,73 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Payment */}
+      {/* Accountability Balance / Ledger */}
       <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
             <CreditCard className="w-5 h-5 text-zinc-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white">Payment Method</h2>
+          <h2 className="text-lg font-semibold text-white">Accountability Balance</h2>
         </div>
-        <p className="text-sm text-zinc-400">Payment method management is handled through your coach. Contact support to update your payment method.</p>
+
+        {/* Balance summary */}
+        <div className={`rounded-xl p-5 mb-4 border ${balanceCents > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-accent/10 border-accent/30'}`}>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Balance Due</p>
+          <p className={`text-4xl font-black mt-1 ${balanceCents > 0 ? 'text-red-400' : 'text-accent'}`}>
+            {formatUsd(balanceCents)}
+          </p>
+          <p className="text-sm text-zinc-400 mt-1">
+            {balanceCents > 0
+              ? `${pendingCharges.length} missed workout${pendingCharges.length === 1 ? '' : 's'} × $10`
+              : "You're all paid up. Keep showing up! 💪"}
+          </p>
+        </div>
+
+        {balanceCents > 0 && (
+          <>
+            {/* How to pay */}
+            <div className="bg-zinc-800/50 rounded-xl p-4 mb-4 space-y-2">
+              <p className="text-sm font-medium text-white">Pay your coach {formatUsd(balanceCents)}:</p>
+              <a href={VENMO_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2.5 transition">
+                <span className="text-zinc-300">Venmo</span>
+                <span className="text-accent font-medium">{VENMO_HANDLE}</span>
+              </a>
+              <div className="flex items-center justify-between text-sm bg-zinc-800 rounded-lg px-3 py-2.5">
+                <span className="text-zinc-300">Zelle</span>
+                <span className="text-accent font-medium">{ZELLE_PHONE}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={markPaid}
+              disabled={isPaying}
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-accent hover:bg-accent/90 disabled:opacity-50 text-white transition flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              {isPaying ? 'Updating...' : "I've Paid — Clear My Balance"}
+            </button>
+            <p className="text-xs text-zinc-600 mt-2 text-center">Only tap this after you've sent payment.</p>
+          </>
+        )}
+
+        {/* Charge history */}
+        {charges.length > 0 && (
+          <div className="mt-5">
+            <p className="text-xs uppercase tracking-wide text-zinc-500 mb-2">History</p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {charges.map(c => (
+                <div key={c.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
+                  <span className="text-zinc-400">
+                    Missed workout · {new Date(c.workoutDate).toLocaleDateString()}
+                  </span>
+                  <span className={c.status === 'PENDING' ? 'text-red-400' : 'text-zinc-500 line-through'}>
+                    {formatUsd(c.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

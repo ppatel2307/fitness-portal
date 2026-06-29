@@ -73,11 +73,12 @@ export function WorkoutPlansPage() {
     name: 'workoutDays',
   });
 
-  // Fetch clients
+  // Fetch clients (all USER-role accounts). The admin endpoint returns these;
+  // '/users/clients' does not exist (that path is manager-only) and 404s.
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
     queryFn: async () => {
-      const response = await api.get<ApiResponse<User[]>>('/users/clients');
+      const response = await api.get<ApiResponse<User[]>>('/admin/users');
       return response.data.data;
     },
   });

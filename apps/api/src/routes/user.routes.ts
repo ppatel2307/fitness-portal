@@ -117,9 +117,23 @@ router.get(
   asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
     const charges = await prisma.missedWorkoutCharge.findMany({
       where: { userId: req.user!.userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { workoutDate: 'desc' },
     });
     res.json({ success: true, data: charges });
+  })
+);
+
+// User self-reports they've paid their outstanding balance (honor system).
+// Marks all of their PENDING charges as paid.
+router.post(
+  '/charges/pay',
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
+    const result = await prisma.missedWorkoutCharge.updateMany({
+      where: { userId: req.user!.userId, status: 'PENDING' },
+      data: { status: 'SUCCEEDED' },
+    });
+    res.json({ success: true, data: { cleared: result.count } });
   })
 );
 

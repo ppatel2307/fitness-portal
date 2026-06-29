@@ -5,8 +5,6 @@ import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/api';
 
 const FITNESS_GOALS = ['Lose weight', 'Build muscle', 'Improve endurance', 'Increase flexibility', 'General fitness', 'Athletic performance', 'Stress relief'];
-const EQUIPMENT = ['No equipment', 'Dumbbells', 'Barbell', 'Pull-up bar', 'Resistance bands', 'Bench', 'Cable machine', 'Full gym access'];
-const DIETARY = ['None', 'Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free', 'Keto', 'Paleo', 'Halal', 'Kosher'];
 
 interface FormData {
   height: string;
@@ -17,8 +15,8 @@ interface FormData {
   dailyWorkoutMinutes: string;
   fitnessGoals: string[];
   injuries: string;
-  dietaryRestrictions: string[];
-  equipment: string[];
+  dietaryRestrictions: string;
+  equipment: string;
   activityLevel: string;
 }
 
@@ -37,12 +35,12 @@ export default function OnboardingPage() {
     dailyWorkoutMinutes: '',
     fitnessGoals: [],
     injuries: '',
-    dietaryRestrictions: [],
-    equipment: [],
+    dietaryRestrictions: '',
+    equipment: '',
     activityLevel: '',
   });
 
-  const toggleArrayItem = (key: 'fitnessGoals' | 'dietaryRestrictions' | 'equipment', item: string) => {
+  const toggleArrayItem = (key: 'fitnessGoals', item: string) => {
     setForm(prev => ({
       ...prev,
       [key]: prev[key].includes(item) ? prev[key].filter(i => i !== item) : [...prev[key], item],
@@ -61,8 +59,8 @@ export default function OnboardingPage() {
         dailyWorkoutMinutes: form.dailyWorkoutMinutes ? parseInt(form.dailyWorkoutMinutes) : undefined,
         fitnessGoals: form.fitnessGoals,
         injuries: form.injuries || undefined,
-        dietaryRestrictions: form.dietaryRestrictions,
-        equipment: form.equipment,
+        dietaryRestrictions: form.dietaryRestrictions.trim() ? [form.dietaryRestrictions.trim()] : [],
+        equipment: form.equipment.trim() ? [form.equipment.trim()] : [],
         activityLevel: form.activityLevel || undefined,
       });
 
@@ -179,18 +177,13 @@ export default function OnboardingPage() {
               </div>
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">Available Equipment</label>
-                <div className="flex flex-wrap gap-2">
-                  {EQUIPMENT.map(eq => (
-                    <button
-                      key={eq}
-                      type="button"
-                      onClick={() => toggleArrayItem('equipment', eq)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition ${form.equipment.includes(eq) ? 'bg-accent text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                    >
-                      {eq}
-                    </button>
-                  ))}
-                </div>
+                <textarea
+                  className="w-full px-4 py-3 bg-zinc-800 border border-border rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                  rows={3}
+                  placeholder="List everything you have access to — e.g., dumbbells up to 50lb, pull-up bar, resistance bands, full gym, or just bodyweight..."
+                  value={form.equipment}
+                  onChange={e => setForm(p => ({ ...p, equipment: e.target.value }))}
+                />
               </div>
             </div>
           )}
@@ -221,18 +214,13 @@ export default function OnboardingPage() {
               <h2 className="text-xl font-semibold text-white mb-4">Nutrition & Health</h2>
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">Dietary Restrictions</label>
-                <div className="flex flex-wrap gap-2">
-                  {DIETARY.map(d => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => toggleArrayItem('dietaryRestrictions', d)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition ${form.dietaryRestrictions.includes(d) ? 'bg-accent text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
+                <textarea
+                  className="w-full px-4 py-3 bg-zinc-800 border border-border rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                  rows={3}
+                  placeholder="Describe any restrictions, allergies, or preferences — e.g., vegetarian, no nuts, lactose intolerant, no pork... (or leave blank if none)"
+                  value={form.dietaryRestrictions}
+                  onChange={e => setForm(p => ({ ...p, dietaryRestrictions: e.target.value }))}
+                />
               </div>
               <div>
                 <label className="block text-sm text-zinc-400 mb-1.5">Injuries or Health Concerns</label>

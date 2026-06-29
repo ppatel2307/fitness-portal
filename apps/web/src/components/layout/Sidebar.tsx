@@ -53,17 +53,27 @@ export function Sidebar() {
 
   const portalLabel = user?.role === 'ADMIN' ? 'Admin Portal' : user?.role === 'MANAGER' ? 'Manager Portal' : 'My Portal';
 
+  // Badge counts ACTIONABLE requests so it matches what the Requests tab shows
+  // (previously it counted unread notifications, which didn't match the list).
   useEffect(() => {
-    const fetchUnread = async () => {
+    const fetchCount = async () => {
       try {
-        const res = await api.get('/notifications');
-        if (res.data.success) setUnreadCount(res.data.data.unreadCount || 0);
+        if (user?.role === 'USER') {
+          const res = await api.get('/requests/my');
+          if (res.data.success) {
+            const open = (res.data.data || []).filter((r: { status: string }) => r.status !== 'RESOLVED');
+            setUnreadCount(open.length);
+          }
+        } else if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
+          const res = await api.get('/requests', { params: { status: 'PENDING' } });
+          if (res.data.success) setUnreadCount((res.data.data || []).length);
+        }
       } catch { /* silent */ }
     };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.role]);
 
   const mobileNavItems = navItems.slice(0, 5);
 
