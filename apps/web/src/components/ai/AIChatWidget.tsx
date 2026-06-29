@@ -19,9 +19,6 @@ export function AIChatWidget() {
   const [chat, setChat] = useState<ChatState>({ conversationId: null, messages: [] });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Only show for USER role
-  if (!isAuthenticated || user?.role !== 'USER') return null;
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -33,6 +30,10 @@ export function AIChatWidget() {
   useEffect(() => {
     scrollToBottom();
   }, [chat.messages]);
+
+  // Only show for logged-in USER role. This guard MUST come after all hooks
+  // above so the hook order stays consistent across renders (React rules of hooks).
+  if (!isAuthenticated || user?.role !== 'USER') return null;
 
   const loadConversation = async () => {
     try {

@@ -3,7 +3,10 @@ import { config } from '../config/index.js';
 import { prisma } from '../lib/prisma.js';
 import { NotificationService } from './notification.service.js';
 
-const stripe = new Stripe(config.stripe.secretKey);
+// Stripe throws at construction if the key is empty. Fall back to a harmless
+// placeholder so the server still boots when billing isn't configured; real
+// Stripe calls only happen on the accountability tier, which needs a real key.
+const stripe = new Stripe(config.stripe.secretKey || 'sk_placeholder_not_configured');
 
 export class StripeService {
   static async getOrCreateCustomer(userId: string, email: string, name: string): Promise<string> {
