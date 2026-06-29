@@ -87,7 +87,7 @@ export class GeminiService {
     history: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>,
     ctx: ChatContext
   ): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const systemPrompt = buildSystemPrompt(ctx);
 
     const chat = model.startChat({
@@ -117,7 +117,7 @@ export class GeminiService {
     totalCalories: number;
     notes: string;
   }> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const { userProfile, nutritionTarget, nutritionGuide } = req;
 
@@ -171,7 +171,7 @@ Generate a meal plan focused on INGREDIENTS rather than detailed recipes. Return
     totalCalories: number;
     notes: string;
   }> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `You are a professional nutrition coach. A user wants to adjust their existing meal plan.
 

@@ -205,7 +205,11 @@ export function WorkoutsPage() {
 
   const completeWorkout = async (workoutDayId: string, durationMinutes: number, feedback: string) => {
     try {
-      await api.post('/workouts/complete', { workoutDayId, durationMinutes, feedback });
+      await api.post('/workouts/complete', {
+        workoutDayId,
+        ...(durationMinutes > 0 && { durationMinutes }),
+        ...(feedback && { feedback }),
+      });
       toast.success('Workout saved! Great job!');
       setGuidedWorkout(null);
       setSelectedDay(null);

@@ -297,7 +297,7 @@ router.post(
   validate({
     body: z.object({
       workoutDayId: z.string().uuid(),
-      durationMinutes: z.number().int().positive().optional(),
+      durationMinutes: z.number().int().min(0).optional(),
       feedback: z.string().max(500).optional(),
     }),
   }),
