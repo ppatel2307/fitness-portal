@@ -297,7 +297,7 @@ export function LandingPage() {
       <section id="about" className="relative min-h-[680px] flex items-center border-y border-border overflow-hidden">
         {/* Full-bleed background image */}
         <img
-          src="/about-bg.jpeg"
+          src="/about-bg.png"
           alt="Veggi Chikn — the story behind the brand"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
