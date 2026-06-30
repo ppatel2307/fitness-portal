@@ -294,18 +294,47 @@ export function LandingPage() {
       </section>
 
       {/* ABOUT */}
-      <section id="about" className="py-24 px-4 bg-background-secondary border-y border-border">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-accent text-xs font-bold uppercase tracking-[0.3em] mb-3">About Me</p>
-          <h2 className="text-3xl sm:text-5xl font-black uppercase text-white leading-none">From then<br />to unrecognizable</h2>
-          <div className="mt-8 bg-surface border border-border rounded-2xl p-8 space-y-4 text-text-secondary leading-relaxed">
-            <p>This is the showdown — the kid I was versus the version I built in the dark. Veggi Chikn Fitness is everything I learned on that journey, turned into a system I can hand to you.</p>
-            <p>Tell me where you are, and I'll build the plan that gets you unrecognizable. <span className="text-text-muted">(Swap this in for your real story any time.)</span></p>
-          </div>
-          <div className="mt-8 text-center">
-            <Link to="/login" className="inline-flex items-center gap-2 px-8 py-4 bg-accent hover:bg-accent-hover text-accent-fg font-bold uppercase tracking-wider rounded-full transition shadow-glow-sm hover:shadow-glow">
-              Begin <ChevronRight className="w-5 h-5" />
-            </Link>
+      <section id="about" className="relative min-h-[680px] flex items-center border-y border-border overflow-hidden">
+        {/* Full-bleed background image */}
+        <img
+          src="/about-bg.jpeg"
+          alt="Veggi Chikn — the story behind the brand"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        {/* Dark overlay for text legibility */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(105deg, rgba(5,8,6,.90) 0%, rgba(5,8,6,.70) 45%, rgba(5,8,6,.40) 100%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full py-24 px-4">
+          <div className="max-w-2xl mx-auto md:mx-0 md:ml-16 lg:ml-28">
+            <p className="text-accent text-xs font-bold uppercase tracking-[0.3em] mb-3">About Me</p>
+            <h2 className="text-3xl sm:text-5xl font-black uppercase text-white leading-none">
+              From then<br />to unrecognizable
+            </h2>
+            <div className="mt-8 space-y-4 text-white/80 leading-relaxed text-lg">
+              <p>
+                Don't waste thousands on a personal trainer. My free plan gets you faster, better results — no fluff, no middlemen, no excuses.
+              </p>
+              <p>
+                I've been vegetarian my whole life and figured out what actually works. The system everyone charges you to learn? I give it away for free.
+              </p>
+              <p>
+                Join the community. It's free — unless you get lazy. Then you pay me. That's not a threat, that's the plan.
+              </p>
+            </div>
+            <div className="mt-10">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-accent hover:bg-accent-hover text-accent-fg font-bold uppercase tracking-wider rounded-full transition shadow-glow hover:scale-[1.02]"
+              >
+                Join the Community <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
