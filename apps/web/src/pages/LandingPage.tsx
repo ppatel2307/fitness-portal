@@ -5,9 +5,9 @@ import {
   ChevronRight, Menu, X, Volume2, VolumeX, Check, Flame,
 } from 'lucide-react';
 
-// Cinematic showdown background (baby-you vs masked-you), generated earlier.
-const SHOWDOWN_IMG =
-  'https://d8j0ntlcm91z4.cloudfront.net/user_3F8iWzvIK6MFT5pms6gK88ATQgB/hf_20260623_225309_efe575b9-7a11-4d66-bf9c-9d7c19f397f7.png';
+// Cinematic showdown background (baby-you vs masked-you), self-hosted and
+// compressed — the original lived on a temporary AI-generation CDN at 9 MB.
+const SHOWDOWN_IMG = '/hero-showdown.jpg';
 
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState('home');
@@ -154,6 +154,8 @@ export function LandingPage() {
           <img
             src={SHOWDOWN_IMG}
             alt="Showdown: the past you vs the future you"
+            width={1920}
+            height={1071}
             className="absolute top-1/2 left-1/2 w-full h-full object-cover animate-hero-drift"
             style={{ transform: 'translate(-50%,-50%)' }}
           />
@@ -297,8 +299,9 @@ export function LandingPage() {
       <section id="about" className="relative min-h-[680px] flex items-center border-y border-border overflow-hidden">
         {/* Full-bleed background image */}
         <img
-          src="/about-bg.png"
+          src="/about-bg.jpg"
           alt="Veggi Chikn — the story behind the brand"
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
         {/* Dark overlay for text legibility */}
