@@ -62,7 +62,7 @@ router.get(
       where: role ? { role: role as 'USER' | 'MANAGER' | 'ADMIN' } : { role: 'USER' },
       select: {
         id: true, email: true, name: true, active: true, createdAt: true, avatarUrl: true,
-        clientProfile: { select: { goal: true, height: true, weight: true } },
+        clientProfile: { select: { goal: true, height: true, weight: true, notes: true } },
         onboarding: { select: { completed: true, fitnessGoals: true } },
         workoutPlans: { where: { active: true }, select: { id: true, title: true }, take: 1 },
         assignedManager: { include: { manager: { select: { id: true, name: true } } } },
@@ -72,6 +72,48 @@ router.get(
       orderBy: { createdAt: 'desc' },
     });
     res.json({ success: true, data: users });
+  })
+);
+
+// Create a client account (admin creates on behalf of a new client)
+router.post(
+  '/users',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      email: z.string().email(),
+      name: z.string().min(1).max(100),
+      password: z.string().min(8),
+      goal: z.string().max(500).optional(),
+      height: z.number().positive().optional(),
+      weight: z.number().positive().optional(),
+      notes: z.string().max(1000).optional(),
+    }),
+  }),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
+    const { email, name, password, goal, height, weight, notes } = req.body;
+
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Email already in use' } });
+    }
+
+    const { AuthService } = await import('../services/auth.service.js');
+    const passwordHash = await AuthService.hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        passwordHash,
+        role: 'USER',
+        clientProfile: { create: { goal, height, weight, notes } },
+      },
+      select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
+    });
+
+    res.status(201).json({ success: true, data: user });
   })
 );
 
@@ -180,20 +222,46 @@ router.post(
   })
 );
 
-// Update user
+// Update user (identity, status, and client profile fields)
 router.patch(
   '/users/:userId',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      name: z.string().min(1).max(100).optional(),
+      active: z.boolean().optional(),
+      goal: z.string().max(500).optional(),
+      height: z.number().positive().optional(),
+      weight: z.number().positive().optional(),
+      notes: z.string().max(1000).optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
-    const { name, active, role } = req.body;
+    const { name, active, goal, height, weight, notes } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
     if (!user) throw new NotFoundError('User');
 
+    const hasProfileFields = [goal, height, weight, notes].some(v => v !== undefined);
+
     const updated = await prisma.user.update({
       where: { id: req.params.userId },
-      data: { name, active, role },
-      select: { id: true, email: true, name: true, role: true, active: true },
+      data: {
+        name,
+        active,
+        ...(hasProfileFields && {
+          clientProfile: {
+            upsert: {
+              create: { goal, height, weight, notes },
+              update: { goal, height, weight, notes },
+            },
+          },
+        }),
+      },
+      select: {
+        id: true, email: true, name: true, role: true, active: true,
+        clientProfile: { select: { goal: true, height: true, weight: true, notes: true } },
+      },
     });
 
     res.json({ success: true, data: updated });

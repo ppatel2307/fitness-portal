@@ -16,7 +16,7 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   { to: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
-  { to: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Users' },
+  { to: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Clients' },
   { to: '/admin/workouts', icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans' },
   { to: '/admin/requests', icon: <ClipboardList className="w-5 h-5" />, label: 'Requests' },
   { to: '/admin/documents', icon: <FileText className="w-5 h-5" />, label: 'AI Documents' },

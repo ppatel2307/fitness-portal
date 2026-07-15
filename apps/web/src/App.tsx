@@ -26,7 +26,6 @@ const ProfilePage = lazy(() => import('@/pages/client/ProfilePage'));
 
 // Admin pages
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
-import { ClientsPage } from '@/pages/admin/ClientsPage';
 import { WorkoutPlansPage } from '@/pages/admin/WorkoutPlansPage';
 import { AnnouncementsPage } from '@/pages/admin/AnnouncementsPage';
 import { ResourcesPage } from '@/pages/admin/ResourcesPage';
@@ -119,7 +118,7 @@ export default function App() {
             element={<ProtectedRoute allowedRoles={['ADMIN']}><DashboardLayout /></ProtectedRoute>}
           >
             <Route index element={<AdminDashboardPage />} />
-            <Route path="clients" element={<ClientsPage />} />
+            <Route path="clients" element={<Navigate to="/admin/users" replace />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="workouts" element={<WorkoutPlansPage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
