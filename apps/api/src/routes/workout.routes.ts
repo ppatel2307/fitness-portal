@@ -43,30 +43,37 @@ router.post(
     const user = await prisma.user.findUnique({ where: { id: userId, role: 'USER' } });
     if (!user) throw new NotFoundError('User');
 
-    const plan = await prisma.workoutPlan.create({
-      data: {
-        userId,
-        title,
-        weekStart: weekStart ? new Date(weekStart) : undefined,
-        workoutDays: workoutDays
-          ? {
-              create: workoutDays.map((day: { dayOfWeek: number; title: string; isRestDay?: boolean; exercises?: { name: string; sets: number; reps: string; restSeconds?: number; notes?: string; youtubeUrl?: string; orderIndex?: number }[] }) => ({
-                dayOfWeek: day.dayOfWeek,
-                title: day.title,
-                isRestDay: day.isRestDay ?? false,
-                exercises: day.exercises
-                  ? { create: day.exercises.map((ex, idx) => ({ ...ex, orderIndex: ex.orderIndex ?? idx })) }
-                  : undefined,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        workoutDays: {
-          include: { exercises: { orderBy: { orderIndex: 'asc' } } },
-          orderBy: { dayOfWeek: 'asc' },
+    // A client follows exactly one active plan: assigning a new one retires the old.
+    const plan = await prisma.$transaction(async tx => {
+      await tx.workoutPlan.updateMany({
+        where: { userId, active: true },
+        data: { active: false },
+      });
+      return tx.workoutPlan.create({
+        data: {
+          userId,
+          title,
+          weekStart: weekStart ? new Date(weekStart) : undefined,
+          workoutDays: workoutDays
+            ? {
+                create: workoutDays.map((day: { dayOfWeek: number; title: string; isRestDay?: boolean; exercises?: { name: string; sets: number; reps: string; restSeconds?: number; notes?: string; youtubeUrl?: string; orderIndex?: number }[] }) => ({
+                  dayOfWeek: day.dayOfWeek,
+                  title: day.title,
+                  isRestDay: day.isRestDay ?? false,
+                  exercises: day.exercises
+                    ? { create: day.exercises.map((ex, idx) => ({ ...ex, orderIndex: ex.orderIndex ?? idx })) }
+                    : undefined,
+                })),
+              }
+            : undefined,
         },
-      },
+        include: {
+          workoutDays: {
+            include: { exercises: { orderBy: { orderIndex: 'asc' } } },
+            orderBy: { dayOfWeek: 'asc' },
+          },
+        },
+      });
     });
 
     await NotificationService.create(userId, 'WORKOUT_ASSIGNED', 'New Workout Plan', `Your coach assigned you a new workout plan: "${title}"`, { planId: plan.id });
@@ -127,25 +134,142 @@ router.patch(
   '/plans/:planId',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      title: z.string().min(1).max(200).optional(),
+      weekStart: z.string().optional(),
+      active: z.boolean().optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const { planId } = req.params;
     const plan = await prisma.workoutPlan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundError('Workout plan');
 
-    const updated = await prisma.workoutPlan.update({
-      where: { id: planId },
-      data: {
-        title: req.body.title,
-        weekStart: req.body.weekStart ? new Date(req.body.weekStart) : undefined,
-        active: req.body.active,
-      },
-      include: {
-        workoutDays: {
-          include: { exercises: { orderBy: { orderIndex: 'asc' } } },
-          orderBy: { dayOfWeek: 'asc' },
+    const updated = await prisma.$transaction(async tx => {
+      // Re-activating a plan retires the client's other active plans.
+      if (req.body.active === true) {
+        await tx.workoutPlan.updateMany({
+          where: { userId: plan.userId, active: true, id: { not: planId } },
+          data: { active: false },
+        });
+      }
+      return tx.workoutPlan.update({
+        where: { id: planId },
+        data: {
+          title: req.body.title,
+          weekStart: req.body.weekStart ? new Date(req.body.weekStart) : undefined,
+          active: req.body.active,
         },
-      },
+        include: {
+          workoutDays: {
+            include: { exercises: { orderBy: { orderIndex: 'asc' } } },
+            orderBy: { dayOfWeek: 'asc' },
+          },
+        },
+      });
     });
+
+    res.json({ success: true, data: updated });
+  })
+);
+
+// Replace a plan's full contents (title + days + exercises) in one call.
+// Simpler and safer for the plan editor than orchestrating granular updates.
+router.put(
+  '/plans/:planId',
+  authenticate,
+  requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      title: z.string().min(1).max(200),
+      workoutDays: z.array(z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        title: z.string().min(1),
+        isRestDay: z.boolean().default(false),
+        exercises: z.array(z.object({
+          name: z.string().min(1),
+          sets: z.number().int().positive(),
+          reps: z.string().min(1),
+          restSeconds: z.number().int().positive().optional(),
+          notes: z.string().optional(),
+          youtubeUrl: z.string().optional(),
+        })).default([]),
+      })),
+    }),
+  }),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
+    const { planId } = req.params;
+    const { title, workoutDays } = req.body;
+
+    const plan = await prisma.workoutPlan.findUnique({ where: { id: planId } });
+    if (!plan) throw new NotFoundError('Workout plan');
+
+    type IncomingDay = {
+      dayOfWeek: number;
+      title: string;
+      isRestDay?: boolean;
+      exercises?: { name: string; sets: number; reps: string; restSeconds?: number; notes?: string; youtubeUrl?: string }[];
+    };
+
+    const updated = await prisma.$transaction(async tx => {
+      // Reconcile days in place so completion history (which the accountability
+      // ledger depends on) survives edits. A day is matched by dayOfWeek; only
+      // days removed from the plan lose their history (FK cascade).
+      const existingDays = await tx.workoutDay.findMany({ where: { workoutPlanId: planId } });
+      const unmatched = [...existingDays];
+
+      for (const day of workoutDays as IncomingDay[]) {
+        const matchIdx = unmatched.findIndex(d => d.dayOfWeek === day.dayOfWeek);
+        const exercises = (day.exercises ?? []).map((ex, idx) => ({ ...ex, orderIndex: idx }));
+
+        if (matchIdx >= 0) {
+          const existing = unmatched.splice(matchIdx, 1)[0];
+          await tx.exercise.deleteMany({ where: { workoutDayId: existing.id } });
+          await tx.workoutDay.update({
+            where: { id: existing.id },
+            data: {
+              title: day.title,
+              isRestDay: day.isRestDay ?? false,
+              exercises: { create: exercises },
+            },
+          });
+        } else {
+          await tx.workoutDay.create({
+            data: {
+              workoutPlanId: planId,
+              dayOfWeek: day.dayOfWeek,
+              title: day.title,
+              isRestDay: day.isRestDay ?? false,
+              exercises: { create: exercises },
+            },
+          });
+        }
+      }
+
+      if (unmatched.length > 0) {
+        await tx.workoutDay.deleteMany({ where: { id: { in: unmatched.map(d => d.id) } } });
+      }
+
+      return tx.workoutPlan.update({
+        where: { id: planId },
+        data: { title },
+        include: {
+          workoutDays: {
+            include: { exercises: { orderBy: { orderIndex: 'asc' } } },
+            orderBy: { dayOfWeek: 'asc' },
+          },
+        },
+      });
+    });
+
+    await NotificationService.create(
+      plan.userId,
+      'WORKOUT_ASSIGNED',
+      'Workout Plan Updated',
+      `Your coach updated your workout plan: "${title}"`,
+      { planId }
+    );
 
     res.json({ success: true, data: updated });
   })
@@ -165,10 +289,28 @@ router.delete(
 
 // ==================== WORKOUT DAY ROUTES ====================
 
+const exerciseInputSchema = z.object({
+  name: z.string().min(1),
+  sets: z.number().int().positive(),
+  reps: z.string().min(1),
+  restSeconds: z.number().int().positive().optional(),
+  notes: z.string().optional(),
+  youtubeUrl: z.string().optional(),
+  orderIndex: z.number().int().optional(),
+});
+
 router.post(
   '/plans/:planId/days',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      dayOfWeek: z.number().int().min(0).max(6),
+      title: z.string().min(1),
+      isRestDay: z.boolean().optional(),
+      exercises: z.array(exerciseInputSchema).optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const plan = await prisma.workoutPlan.findUnique({ where: { id: req.params.planId } });
     if (!plan) throw new NotFoundError('Workout plan');
@@ -194,6 +336,13 @@ router.patch(
   '/days/:dayId',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      title: z.string().min(1).optional(),
+      dayOfWeek: z.number().int().min(0).max(6).optional(),
+      isRestDay: z.boolean().optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const day = await prisma.workoutDay.findUnique({ where: { id: req.params.dayId } });
     if (!day) throw new NotFoundError('Workout day');
@@ -226,6 +375,7 @@ router.post(
   '/days/:dayId/exercises',
   authenticate,
   requireRole('ADMIN'),
+  validate({ body: exerciseInputSchema }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const day = await prisma.workoutDay.findUnique({ where: { id: req.params.dayId } });
     if (!day) throw new NotFoundError('Workout day');
@@ -256,6 +406,7 @@ router.patch(
   '/exercises/:exerciseId',
   authenticate,
   requireRole('ADMIN'),
+  validate({ body: exerciseInputSchema.partial() }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const exercise = await prisma.exercise.findUnique({ where: { id: req.params.exerciseId } });
     if (!exercise) throw new NotFoundError('Exercise');
