@@ -18,6 +18,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-flash-latest'),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_ACCOUNTABILITY_PRICE_ID: z.string().optional(),
@@ -48,7 +49,10 @@ export const config = {
     clientId: parsed.data.GOOGLE_CLIENT_ID ?? '',
     clientSecret: parsed.data.GOOGLE_CLIENT_SECRET ?? '',
   },
-  gemini: { apiKey: parsed.data.GEMINI_API_KEY ?? '' },
+  gemini: {
+    apiKey: parsed.data.GEMINI_API_KEY ?? '',
+    model: parsed.data.GEMINI_MODEL,
+  },
   stripe: {
     secretKey: parsed.data.STRIPE_SECRET_KEY ?? '',
     webhookSecret: parsed.data.STRIPE_WEBHOOK_SECRET ?? '',

@@ -1,7 +1,29 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/index.js';
+import { logger } from '../lib/logger.js';
+import { InternalError, ServiceUnavailableError } from '../lib/errors.js';
 
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+
+/**
+ * Map raw Gemini SDK failures to user-actionable AppErrors.
+ * 429 = free-tier quota exhausted (retryable later); 404 = model retired.
+ */
+function toAppError(err: unknown): Error {
+  const msg = String((err as Error)?.message ?? err);
+  logger.error(`Gemini request failed (model: ${config.gemini.model}): ${msg}`);
+  if (msg.includes('429') || msg.includes('quota')) {
+    return new ServiceUnavailableError(
+      'The AI coach is at capacity right now. Please try again in a minute.'
+    );
+  }
+  if (msg.includes('404')) {
+    return new InternalError(
+      `AI model "${config.gemini.model}" is unavailable — update GEMINI_MODEL.`
+    );
+  }
+  return new ServiceUnavailableError('The AI coach could not respond. Please try again.');
+}
 
 export interface ChatContext {
   userProfile?: {
@@ -87,25 +109,18 @@ export class GeminiService {
     history: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>,
     ctx: ChatContext
   ): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const systemPrompt = buildSystemPrompt(ctx);
-
-    const chat = model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: systemPrompt }],
-        },
-        {
-          role: 'model',
-          parts: [{ text: 'Understood. I am ready to assist as your AI fitness coaching assistant using the provided context.' }],
-        },
-        ...history,
-      ],
+    const model = genAI.getGenerativeModel({
+      model: config.gemini.model,
+      systemInstruction: buildSystemPrompt(ctx),
     });
 
-    const result = await chat.sendMessage(userMessage);
-    return result.response.text();
+    try {
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(userMessage);
+      return result.response.text();
+    } catch (err) {
+      throw toAppError(err);
+    }
   }
 
   static async generateMealPlan(req: MealPlanRequest): Promise<{
@@ -117,7 +132,7 @@ export class GeminiService {
     totalCalories: number;
     notes: string;
   }> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: config.gemini.model });
 
     const { userProfile, nutritionTarget, nutritionGuide } = req;
 
@@ -149,11 +164,16 @@ Generate a meal plan focused on INGREDIENTS rather than detailed recipes. Return
   "notes": "Brief nutrition notes for the user"
 }`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    let text: string;
+    try {
+      const result = await model.generateContent(prompt);
+      text = result.response.text();
+    } catch (err) {
+      throw toAppError(err);
+    }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Invalid AI response format');
+    if (!jsonMatch) throw new ServiceUnavailableError('The AI returned an unreadable meal plan. Please try again.');
 
     return JSON.parse(jsonMatch[0]);
   }
@@ -171,7 +191,7 @@ Generate a meal plan focused on INGREDIENTS rather than detailed recipes. Return
     totalCalories: number;
     notes: string;
   }> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: config.gemini.model });
 
     const prompt = `You are a professional nutrition coach. A user wants to adjust their existing meal plan.
 
@@ -195,10 +215,15 @@ Make ONLY the requested changes to the meal plan. Keep everything else the same.
   "notes": "What was changed and why"
 }`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    let text: string;
+    try {
+      const result = await model.generateContent(prompt);
+      text = result.response.text();
+    } catch (err) {
+      throw toAppError(err);
+    }
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Invalid AI response format');
+    if (!jsonMatch) throw new ServiceUnavailableError('The AI returned an unreadable meal plan. Please try again.');
     return JSON.parse(jsonMatch[0]);
   }
 }

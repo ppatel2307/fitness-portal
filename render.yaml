@@ -33,6 +33,8 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
       # Single admin (you). ADMIN_EMAIL also grants admin on Google sign-in.
       - key: ADMIN_EMAIL
         sync: false

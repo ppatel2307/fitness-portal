@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Minimize2, Send, Loader2, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AIMessage } from '@/types';
 
@@ -80,8 +80,8 @@ export function AIChatWidget() {
           messages: [...prev.messages, aiMsg],
         }));
       }
-    } catch {
-      toast.error('Failed to get AI response');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
