@@ -19,7 +19,7 @@ Run both: `npm run dev` (root). API on :3001, web on :5173.
 | Manager | MANAGER   | Assigned clients, workout plan editing     |
 | Admin   | ADMIN     | All users, billing, documents, announcements |
 
-JWT in cookie. Role enforced per route in `apps/api/src/middleware/auth.ts`.
+Auth: JWT Bearer access token (in-memory) + rotating refresh token (localStorage). Role enforced per route in `apps/api/src/middleware/auth.ts`.
 
 ## Tech Stack
 
