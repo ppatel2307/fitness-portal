@@ -1,8 +1,193 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
-import type { MealPlan, NutritionTarget } from '@/types';
-import { Apple, Sparkles, RefreshCw, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
+import { getToday } from '@/lib/utils';
+import type { MealPlan, NutritionTarget, ApiResponse } from '@/types';
+import { Apple, Sparkles, RefreshCw, ShoppingCart, ChevronDown, ChevronUp, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+
+interface FoodLog {
+  id: string;
+  date: string;
+  mealName: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const foodLogSchema = z.object({
+  mealName: z.string().min(1, 'What did you eat?').max(100),
+  calories: z.coerce.number().int().nonnegative(),
+  protein: z.coerce.number().int().nonnegative(),
+  carbs: z.coerce.number().int().nonnegative(),
+  fat: z.coerce.number().int().nonnegative(),
+});
+
+type FoodLogForm = z.infer<typeof foodLogSchema>;
+
+function FoodLogSection({ target }: { target: NutritionTarget | null }) {
+  const queryClient = useQueryClient();
+  const today = getToday();
+
+  const logsQuery = useQuery({
+    queryKey: ['food-logs', today],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<FoodLog[]>>(`/nutrition/logs?date=${today}`);
+      return res.data.data ?? [];
+    },
+  });
+
+  const form = useForm<FoodLogForm>({
+    resolver: zodResolver(foodLogSchema),
+    defaultValues: { mealName: '', calories: 0, protein: 0, carbs: 0, fat: 0 },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (data: FoodLogForm) => {
+      await api.post('/nutrition/logs', { ...data, date: today });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['food-logs', today] });
+      form.reset();
+      toast.success('Meal logged');
+    },
+    onError: err => toast.error(getErrorMessage(err)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      await api.delete(`/nutrition/logs/${logId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['food-logs', today] });
+      toast.success('Entry removed');
+    },
+    onError: err => toast.error(getErrorMessage(err)),
+  });
+
+  const logs = logsQuery.data ?? [];
+  const totals = logs.reduce(
+    (acc, log) => ({
+      calories: acc.calories + log.calories,
+      protein: acc.protein + log.protein,
+      carbs: acc.carbs + log.carbs,
+      fat: acc.fat + log.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  const macros = [
+    { label: 'Calories', eaten: totals.calories, goal: target?.calories, color: 'bg-yellow-400' },
+    { label: 'Protein', eaten: totals.protein, goal: target?.protein, color: 'bg-blue-400' },
+    { label: 'Carbs', eaten: totals.carbs, goal: target?.carbs, color: 'bg-green-400' },
+    { label: 'Fat', eaten: totals.fat, goal: target?.fat, color: 'bg-orange-400' },
+  ];
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+      <div className="flex items-center gap-2">
+        <UtensilsCrossed className="w-5 h-5 text-zinc-400" />
+        <h2 className="text-lg font-semibold text-white">Today's Food Log</h2>
+      </div>
+
+      {/* Progress vs targets */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {macros.map(m => {
+          const pct = m.goal ? Math.min(100, Math.round((m.eaten / m.goal) * 100)) : 0;
+          return (
+            <div key={m.label} className="bg-zinc-800/50 rounded-xl p-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-white">{m.eaten}</span>
+                <span className="text-xs text-zinc-500">{m.goal ? `/ ${m.goal}` : ''}</span>
+              </div>
+              <p className="text-xs text-zinc-500 mb-2">{m.label}</p>
+              <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${m.color} rounded-full transition-all duration-300`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add entry */}
+      <form
+        onSubmit={form.handleSubmit(data => addMutation.mutate(data))}
+        className="grid grid-cols-2 md:grid-cols-12 gap-2 items-start"
+      >
+        <div className="col-span-2 md:col-span-4">
+          <input
+            className="w-full px-3 py-2 bg-zinc-800 border border-border rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="Meal (e.g. Tofu stir-fry)"
+            aria-label="Meal name"
+            {...form.register('mealName')}
+          />
+          {form.formState.errors.mealName && (
+            <p className="text-xs text-error mt-1">{form.formState.errors.mealName.message}</p>
+          )}
+        </div>
+        {(['calories', 'protein', 'carbs', 'fat'] as const).map(field => (
+          <div key={field} className="col-span-1">
+            <input
+              type="number"
+              min={0}
+              className="w-full px-3 py-2 bg-zinc-800 border border-border rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              placeholder={field === 'calories' ? 'kcal' : `${field[0].toUpperCase()}g`}
+              aria-label={field}
+              {...form.register(field)}
+            />
+          </div>
+        ))}
+        <div className="col-span-2 md:col-span-4">
+          <button
+            type="submit"
+            disabled={addMutation.isPending}
+            className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg rounded-lg text-sm font-semibold transition"
+          >
+            <Plus className="w-4 h-4" /> {addMutation.isPending ? 'Logging…' : 'Log Meal'}
+          </button>
+        </div>
+      </form>
+
+      {/* Entries */}
+      {logsQuery.isLoading ? (
+        <div className="flex justify-center py-6">
+          <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-zinc-500 text-center py-4">
+          Nothing logged today — add your first meal above.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {logs.map(log => (
+            <li key={log.id} className="flex items-center justify-between py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm text-white truncate">{log.mealName}</p>
+                <p className="text-xs text-zinc-500">
+                  {log.calories} kcal • P {log.protein}g • C {log.carbs}g • F {log.fat}g
+                </p>
+              </div>
+              <button
+                onClick={() => deleteMutation.mutate(log.id)}
+                className="p-1.5 text-zinc-500 hover:text-error rounded-lg hover:bg-error/10 transition"
+                aria-label={`Delete ${log.mealName}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function MealCard({ title, section }: { title: string; section: { items: string[]; calories: number } }) {
   const [expanded, setExpanded] = useState(true);
@@ -35,65 +220,80 @@ function MealCard({ title, section }: { title: string; section: { items: string[
 }
 
 export function NutritionPage() {
-  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
-  const [nutritionTarget, setNutritionTarget] = useState<NutritionTarget | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const queryClient = useQueryClient();
   const [adjustment, setAdjustment] = useState('');
-  const [isAdjusting, setIsAdjusting] = useState(false);
   const [showGroceries, setShowGroceries] = useState(false);
 
-  const load = async () => {
-    try {
-      const [planRes, targetRes] = await Promise.all([
-        api.get('/nutrition/meal-plan').catch(() => ({ data: { success: false } })),
-        api.get('/nutrition/my-targets').catch(() => ({ data: { success: false } })),
-      ]);
-      if (planRes.data.success) setMealPlan(planRes.data.data);
-      if (targetRes.data.success) setNutritionTarget(targetRes.data.data);
-    } catch { /* silent */ } finally {
-      setIsLoading(false);
-    }
+  const mealPlanQuery = useQuery({
+    queryKey: ['meal-plan'],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<MealPlan | null>>('/nutrition/meal-plan');
+      return res.data.data ?? null;
+    },
+  });
+
+  const targetsQuery = useQuery({
+    queryKey: ['nutrition-targets'],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<NutritionTarget | null>>('/nutrition/my-targets');
+      return res.data.data ?? null;
+    },
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post<ApiResponse<MealPlan>>('/ai/meal-plan/generate');
+      return res.data.data;
+    },
+    onSuccess: plan => {
+      queryClient.setQueryData(['meal-plan'], plan);
+      toast.success('Meal plan generated!');
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  const adjustMutation = useMutation({
+    mutationFn: async (change: string) => {
+      const res = await api.post<ApiResponse<MealPlan>>('/ai/meal-plan/adjust', { adjustment: change });
+      return res.data.data;
+    },
+    onSuccess: plan => {
+      queryClient.setQueryData(['meal-plan'], plan);
+      setAdjustment('');
+      toast.success('Meal plan updated!');
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  const mealPlan = mealPlanQuery.data ?? null;
+  const nutritionTarget = targetsQuery.data ?? null;
+  const isGenerating = generateMutation.isPending;
+  const isAdjusting = adjustMutation.isPending;
+
+  const generateMealPlan = () => generateMutation.mutate();
+  const adjustMealPlan = () => {
+    if (adjustment.trim()) adjustMutation.mutate(adjustment.trim());
   };
 
-  useEffect(() => { load(); }, []);
-
-  const generateMealPlan = async () => {
-    setIsGenerating(true);
-    try {
-      const res = await api.post('/ai/meal-plan/generate');
-      if (res.data.success) {
-        setMealPlan(res.data.data);
-        toast.success('Meal plan generated!');
-      }
-    } catch (e) {
-      toast.error(getErrorMessage(e));
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const adjustMealPlan = async () => {
-    if (!adjustment.trim()) return;
-    setIsAdjusting(true);
-    try {
-      const res = await api.post('/ai/meal-plan/adjust', { adjustment });
-      if (res.data.success) {
-        setMealPlan(res.data.data);
-        setAdjustment('');
-        toast.success('Meal plan updated!');
-      }
-    } catch (e) {
-      toast.error(getErrorMessage(e));
-    } finally {
-      setIsAdjusting(false);
-    }
-  };
-
-  if (isLoading) {
+  if (mealPlanQuery.isLoading || targetsQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (mealPlanQuery.isError) {
+    return (
+      <div className="bg-card border border-border rounded-2xl p-12 text-center">
+        <h2 className="text-xl font-semibold text-white mb-2">Couldn't load your nutrition data</h2>
+        <p className="text-zinc-400 mb-6">{getErrorMessage(mealPlanQuery.error)}</p>
+        <button
+          onClick={() => mealPlanQuery.refetch()}
+          className="px-6 py-3 bg-accent hover:bg-accent-hover text-accent-fg font-semibold rounded-xl transition"
+        >
+          Try again
+        </button>
       </div>
     );
   }
@@ -131,6 +331,9 @@ export function NutritionPage() {
           </div>
         </div>
       )}
+
+      {/* Daily food logging */}
+      <FoodLogSection target={nutritionTarget} />
 
       {/* No meal plan */}
       {!mealPlan && (

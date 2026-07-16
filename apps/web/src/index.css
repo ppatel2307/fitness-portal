@@ -87,3 +87,20 @@ input[type="number"] {
   to   { transform: translate(-50%, -52%) scale(1.13); }
 }
 .animate-hero-drift { animation: heroDrift 26s ease-in-out infinite alternate; }
+
+/* Respect users who opt out of motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-drift,
+  .skeleton,
+  .animate-spin,
+  .animate-pulse,
+  .animate-pulse-ring {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto !important;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

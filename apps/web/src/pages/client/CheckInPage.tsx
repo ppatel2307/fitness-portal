@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '@/lib/api';
-import { getWeekStart, formatDate } from '@/lib/utils';
+import { getWeekStart, formatDate, toLocalDateString } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   Card,
@@ -38,7 +38,7 @@ type CheckInForm = z.infer<typeof checkInSchema>;
 export function CheckInPage() {
   const queryClient = useQueryClient();
   const weekStart = getWeekStart();
-  const weekOf = weekStart.toISOString().split('T')[0];
+  const weekOf = toLocalDateString(weekStart);
 
   const {
     register,

@@ -23,6 +23,9 @@ const OnboardingPage = lazy(() => import('@/pages/onboarding/OnboardingPage'));
 const CalendarPage = lazy(() => import('@/pages/client/CalendarPage'));
 const RequestsPage = lazy(() => import('@/pages/client/RequestsPage'));
 const ProfilePage = lazy(() => import('@/pages/client/ProfilePage'));
+const CheckInPage = lazy(() =>
+  import('@/pages/client/CheckInPage').then(m => ({ default: m.CheckInPage }))
+);
 
 // Admin pages
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
@@ -32,6 +35,9 @@ import { ResourcesPage } from '@/pages/admin/ResourcesPage';
 const AdminRequestsPage = lazy(() => import('@/pages/admin/AdminRequestsPage'));
 const AdminDocumentsPage = lazy(() => import('@/pages/admin/AdminDocumentsPage'));
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
+const AdminCheckInsPage = lazy(() =>
+  import('@/pages/admin/AdminCheckInsPage').then(m => ({ default: m.AdminCheckInsPage }))
+);
 
 // Manager pages
 const ManagerDashboardPage = lazy(() => import('@/pages/manager/ManagerDashboardPage'));
@@ -106,6 +112,7 @@ export default function App() {
             <Route path="/workouts" element={<WorkoutsPage />} />
             <Route path="/nutrition" element={<NutritionPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/check-in" element={<CheckInPage />} />
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
@@ -124,6 +131,7 @@ export default function App() {
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="resources" element={<ResourcesPage />} />
             <Route path="requests" element={<AdminRequestsPage />} />
+            <Route path="check-ins" element={<AdminCheckInsPage />} />
             <Route path="documents" element={<AdminDocumentsPage />} />
           </Route>
 

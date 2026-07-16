@@ -64,8 +64,19 @@ export function getWeekStart(date: Date = new Date()): Date {
   return d;
 }
 
+/**
+ * Format a date as YYYY-MM-DD in the user's LOCAL timezone.
+ * toISOString() is UTC and rolls to the wrong day in the evening.
+ */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function getToday(): string {
-  return new Date().toISOString().split('T')[0];
+  return toLocalDateString(new Date());
 }
 
 export function calculateMacroPercentage(value: number, total: number): number {

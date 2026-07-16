@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
   LayoutDashboard, Users, Dumbbell, Apple, BarChart3, MessageSquare,
-  FolderOpen, Settings, LogOut, Calendar, ClipboardList, Bell, FileText, UserCog, User,
+  FolderOpen, Settings, LogOut, Calendar, ClipboardList, ClipboardCheck, FileText, User,
 } from 'lucide-react';
 
 interface NavItem {
@@ -19,6 +19,7 @@ const adminNavItems: NavItem[] = [
   { to: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Clients' },
   { to: '/admin/workouts', icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans' },
   { to: '/admin/requests', icon: <ClipboardList className="w-5 h-5" />, label: 'Requests' },
+  { to: '/admin/check-ins', icon: <ClipboardCheck className="w-5 h-5" />, label: 'Check-ins' },
   { to: '/admin/documents', icon: <FileText className="w-5 h-5" />, label: 'AI Documents' },
   { to: '/admin/announcements', icon: <MessageSquare className="w-5 h-5" />, label: 'Announcements' },
   { to: '/admin/resources', icon: <FolderOpen className="w-5 h-5" />, label: 'Resources' },
@@ -34,6 +35,7 @@ const userNavItems: NavItem[] = [
   { to: '/workouts', icon: <Dumbbell className="w-5 h-5" />, label: 'Workouts' },
   { to: '/calendar', icon: <Calendar className="w-5 h-5" />, label: 'Calendar' },
   { to: '/nutrition', icon: <Apple className="w-5 h-5" />, label: 'Nutrition' },
+  { to: '/check-in', icon: <ClipboardCheck className="w-5 h-5" />, label: 'Check-In' },
   { to: '/requests', icon: <ClipboardList className="w-5 h-5" />, label: 'Requests' },
   { to: '/stats', icon: <BarChart3 className="w-5 h-5" />, label: 'Progress' },
   { to: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
