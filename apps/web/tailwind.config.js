@@ -18,6 +18,9 @@ export default {
           hover: '#181f26',
           active: '#222b34',
         },
+        // `bg-card` is used across pages; without this token it silently
+        // resolved to transparent (visible on overlays like the chat widget).
+        card: '#0d1216',
         border: {
           DEFAULT: '#1e262e',
           light: '#2c3742',

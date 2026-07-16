@@ -43,9 +43,10 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center font-medium rounded-lg transition-colors',
+        'inline-flex items-center justify-center font-medium rounded-lg',
+        'transition-all duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none',
         'focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
         variants[variant],
         sizes[size],
         className

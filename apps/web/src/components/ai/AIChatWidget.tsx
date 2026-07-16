@@ -107,10 +107,12 @@ export function AIChatWidget() {
       {/* Chat window */}
       {isOpen && (
         <div
-          className={`fixed bottom-20 right-4 z-50 w-80 sm:w-96 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-200 ${isMinimized ? 'h-14' : 'h-[500px]'}`}
+          className={`fixed z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-200
+            inset-x-2 bottom-20 sm:inset-x-auto sm:right-4 sm:w-96
+            ${isMinimized ? 'h-14' : 'top-16 sm:top-auto sm:h-[500px]'}`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border rounded-t-2xl bg-zinc-800/50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border rounded-t-2xl bg-surface">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-sm font-semibold text-white">AI Coach</span>
@@ -155,8 +157,8 @@ export function AIChatWidget() {
                     <div
                       className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                         msg.role === 'USER'
-                          ? 'bg-accent text-white rounded-br-sm'
-                          : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'
+                          ? 'bg-accent text-accent-fg rounded-br-sm'
+                          : 'bg-surface text-text-primary rounded-bl-sm'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{msg.content}</p>
