@@ -55,6 +55,16 @@ router.patch(
   '/targets/:userId',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      calories: z.number().int().positive().optional(),
+      protein: z.number().int().nonnegative().optional(),
+      carbs: z.number().int().nonnegative().optional(),
+      fat: z.number().int().nonnegative().optional(),
+      waterLiters: z.number().positive().optional(),
+      notes: z.string().optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const target = await prisma.nutritionTarget.findUnique({ where: { userId: req.params.userId } });
     if (!target) throw new NotFoundError('Nutrition target');
@@ -130,6 +140,16 @@ router.get(
 router.patch(
   '/logs/:logId',
   authenticate,
+  validate({
+    body: z.object({
+      date: z.string().optional(),
+      mealName: z.string().min(1).max(100).optional(),
+      calories: z.number().int().nonnegative().optional(),
+      protein: z.number().int().nonnegative().optional(),
+      carbs: z.number().int().nonnegative().optional(),
+      fat: z.number().int().nonnegative().optional(),
+    }),
+  }),
   asyncHandler(async (req: AuthenticatedRequest, res: Response<ApiResponse>) => {
     const log = await prisma.foodLog.findUnique({ where: { id: req.params.logId } });
     if (!log) throw new NotFoundError('Food log');

@@ -291,6 +291,7 @@ model MealPlan {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, weekStart])
   @@index([userId, weekStart])
 }
 

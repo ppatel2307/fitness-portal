@@ -188,14 +188,13 @@ router.post(
       nutritionGuide: nutritionGuide?.content,
     });
 
+    // Start of current week, normalized to a date-only value to match @db.Date.
     const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of current week
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
 
     const mealPlan = await prisma.mealPlan.upsert({
-      where: {
-        // There's no unique constraint here, so we find and update or create
-        id: (await prisma.mealPlan.findFirst({ where: { userId, weekStart } }))?.id ?? 'new',
-      },
+      where: { userId_weekStart: { userId, weekStart } },
       create: {
         userId,
         weekStart,

@@ -328,6 +328,13 @@ router.patch(
   '/documents/:id',
   authenticate,
   requireRole('ADMIN'),
+  validate({
+    body: z.object({
+      title: z.string().min(1).max(200).optional(),
+      content: z.string().min(1).optional(),
+      active: z.boolean().optional(),
+    }),
+  }),
   asyncHandler(async (req, res: Response<ApiResponse>) => {
     const doc = await prisma.aIDocument.findUnique({ where: { id: req.params.id } });
     if (!doc) throw new NotFoundError('Document');

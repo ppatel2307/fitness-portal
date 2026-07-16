@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { NotFoundError, ForbiddenError } from '../lib/errors.js';
+import { NotFoundError, ForbiddenError, ConflictError } from '../lib/errors.js';
 import { NotificationService } from '../services/notification.service.js';
 import { AuthenticatedRequest, ApiResponse } from '../types/index.js';
 
@@ -463,6 +463,15 @@ router.post(
 
     if (!day) throw new NotFoundError('Workout day');
     if (day.workoutPlan.userId !== userId) throw new ForbiddenError("Cannot complete another user's workout");
+
+    // One completion per workout day per calendar day — duplicates would skew
+    // streaks, stats, and the missed-day accountability ledger.
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const existing = await prisma.workoutCompletion.findFirst({
+      where: { userId, workoutDayId, completedAt: { gte: dayStart } },
+    });
+    if (existing) throw new ConflictError('Workout already logged today');
 
     const completion = await prisma.workoutCompletion.create({
       data: { userId, workoutDayId, durationMinutes, feedback },
